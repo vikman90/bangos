@@ -1,0 +1,8 @@
+build/
+*.o
+*.so
+*.EFI
+app/hipotenusa
+app/hipotenusa.s
+app/hipotenusa.o
+*.log
