@@ -1,0 +1,56 @@
+#include "kernel.h"
+#include "arch/x86_64/gdt.h"
+#include "arch/x86_64/idt.h"
+#include "syscall/syscall.h"
+#include "drivers/uart.h"
+#include "mm/memory.h"
+#include "loader/elf.h"
+#include "process/process.h"
+
+static void fpu_sse_init(void) {
+    uint64_t cr0, cr4;
+    __asm__ volatile ("mov %%cr0, %0" : "=r"(cr0));
+    cr0 &= ~(1ULL << 2); // Clear CR0.EM (Emulation)
+    cr0 |= (1ULL << 1);  // Set CR0.MP (Monitor Coprocessor)
+    cr0 &= ~(1ULL << 3); // Clear CR0.TS (Task Switched)
+    __asm__ volatile ("mov %0, %%cr0" : : "r"(cr0));
+
+    __asm__ volatile ("mov %%cr4, %0" : "=r"(cr4));
+    cr4 |= (1ULL << 9);  // Set CR4.OSFXSR (Enable FXSAVE/FXRSTOR & SSE)
+    cr4 |= (1ULL << 10); // Set CR4.OSXMMEXCPT (Enable SIMD Floating-Point Exceptions)
+    __asm__ volatile ("mov %0, %%cr4" : : "r"(cr4));
+
+    kprintf("[FPU/SSE] Hardware floating-point & SSE extensions enabled.\n");
+}
+
+void kernel_main(boot_info_t *boot_info) {
+    uart_init();
+    
+    kprintf("\n======================================================\n");
+    kprintf("          BangOS Bare-Metal OS Kernel (x86_64)        \n");
+    kprintf("======================================================\n");
+    kprintf("[Kernel] Boot info received at %p\n", boot_info);
+    kprintf("[Kernel] ELF payload at %p (%u bytes)\n",
+            boot_info->elf_paddr, (uint32_t)boot_info->elf_size);
+
+    gdt_init();
+    idt_init();
+    mm_init(boot_info);
+    fpu_sse_init();
+    syscall_init_msrs();
+
+    elf_info_t elf_info;
+    if (elf_load_binary(boot_info->elf_paddr, boot_info->elf_size, &elf_info) != 0) {
+        kprintf("[Kernel Error] Failed to load user ELF payload!\n");
+        while (1) {
+            __asm__ volatile ("cli; hlt");
+        }
+    }
+
+    process_t *proc = process_create(&elf_info);
+    process_jump_to_user(proc);
+
+    while (1) {
+        __asm__ volatile ("cli; hlt");
+    }
+}
