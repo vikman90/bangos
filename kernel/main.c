@@ -6,6 +6,7 @@
 #include "mm/memory.h"
 #include "loader/elf.h"
 #include "process/process.h"
+#include "fs/tarfs.h"
 
 static void fpu_sse_init(void) {
     uint64_t cr0, cr4;
@@ -30,24 +31,39 @@ void kernel_main(boot_info_t *boot_info) {
     kprintf("          BangOS Bare-Metal OS Kernel (x86_64)        \n");
     kprintf("======================================================\n");
     kprintf("[Kernel] Boot info received at %p\n", boot_info);
-    kprintf("[Kernel] ELF payload at %p (%u bytes)\n",
-            boot_info->elf_paddr, (uint32_t)boot_info->elf_size);
+    kprintf("[Kernel] Ramdisk payload at %p (%u bytes)\n",
+            boot_info->ramdisk_paddr, (uint32_t)boot_info->ramdisk_size);
 
     gdt_init();
     idt_init();
     mm_init(boot_info);
     fpu_sse_init();
     syscall_init_msrs();
+    process_init();
+
+    tarfs_init(boot_info->ramdisk_paddr, boot_info->ramdisk_size);
+    tarfs_list_files();
+
+    const void *init_elf_data = NULL;
+    size_t init_elf_size = 0;
+    if (tarfs_lookup("/bin/init", &init_elf_data, &init_elf_size) != 0 &&
+        tarfs_lookup("init", &init_elf_data, &init_elf_size) != 0) {
+        init_elf_data = boot_info->elf_paddr;
+        init_elf_size = boot_info->elf_size;
+    }
+
+    kprintf("[Kernel] Loading initial init ELF at %p (%u bytes)...\n",
+            init_elf_data, (uint32_t)init_elf_size);
 
     elf_info_t elf_info;
-    if (elf_load_binary(boot_info->elf_paddr, boot_info->elf_size, &elf_info) != 0) {
-        kprintf("[Kernel Error] Failed to load user ELF payload!\n");
+    if (elf_load_binary(init_elf_data, init_elf_size, &elf_info) != 0) {
+        kprintf("[Kernel Error] Failed to load initial user ELF payload!\n");
         while (1) {
             __asm__ volatile ("cli; hlt");
         }
     }
 
-    process_t *proc = process_create(&elf_info);
+    process_t *proc = process_create_from_elf(&elf_info, "init");
     process_jump_to_user(proc);
 
     while (1) {

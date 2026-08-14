@@ -13,7 +13,8 @@ The project is designed to be highly modular and extensible, serving as a clean 
 
 ## 🌟 Key Features
 
-* **64-bit UEFI Bootloader**: Loads directly via OVMF UEFI firmware, sets up graphics/serial console, reads ELF executables from FAT32 boot partitions, and transitions to kernel mode.
+* **64-bit UEFI Bootloader**: Loads directly via OVMF UEFI firmware, sets up graphics/serial console, reads the `initrd.tar` ramdisk from FAT32 boot partitions, and transitions to kernel mode.
+* **In-Memory TarFS Ramdisk**: Parses standard USTAR archives containing standalone ELF binaries directly in physical RAM.
 * **x86_64 Core Subsystems**:
   * **GDT & TSS**: Segment descriptors configured for kernel space (`0x08`, `0x10`) and user space (`0x1B`, `0x23`).
   * **IDT & Exception Handling**: Interrupt table with 256 gates and dedicated Interrupt Stack Table (IST) for exception safety.
@@ -26,19 +27,21 @@ The project is designed to be highly modular and extensible, serving as a clean 
   * `SYS_POLL` (`7`): Non-blocking I/O polling.
   * `SYS_MMAP` (`9`) / `SYS_BRK` (`12`): Memory allocation and user heap growth.
   * `SYS_NANOSLEEP` (`35`): High-precision sleep with timestamp counter (TSC).
-  * `SYS_GETPID` (`39`): Process ID query (returns `1` for `init`).
+  * `SYS_GETPID` (`39`): Process ID query.
+  * `SYS_FORK` (`57`) / `SYS_VFORK` (`58`) / `SYS_CLONE` (`56`): Process context creation.
+  * `SYS_EXECVE` (`59`): Replaces process image with standalone ELF from TarFS ramdisk.
+  * `SYS_WAIT4` (`61`): Waits for child process termination.
   * `SYS_UNAME` (`63`): System name, version, and architecture query (`struct utsname`).
   * `SYS_SYSINFO` (`99`): System statistics, uptime, and memory usage (`struct sysinfo`).
   * `SYS_ARCH_PRCTL` (`158`): Thread Local Storage (`FS_BASE` / `GS_BASE`).
   * `SYS_IOCTL` (`16`): Terminal attributes (`TIOCGWINSZ`).
   * `SYS_CLOCK_GETTIME` (`228`): Monotonic and realtime timestamps with nanosecond precision.
-  * `SYS_EXIT` (`60`) / `SYS_EXIT_GROUP` (`231`): Clean process termination and system halt.
-* **Modular Userland (`init`)**:
-  * **PID 1 Interactive Menu**: System banner, status overview, and modular dispatcher.
-  * **Geometric Calculator (`calc`)**: Hypotenuse, perimeter, and area calculation.
-  * **System Information (`sysinfo`)**: Live OS and hardware report using `uname` and `sysinfo`.
-  * **CPU FPU/SSE & Timer Benchmark (`bench`)**: 20M iteration $\pi$ calculation, heap benchmark, and nanosleep verification.
-  * **Dynamic Memory Stress Test (`memtest`)**: Multi-megabyte allocation and data integrity validation.
+  * `SYS_EXIT` (`60`) / `SYS_EXIT_GROUP` (`231`): Process termination, child reaping, or system halt.
+* **Standalone Multi-ELF Userland**:
+  * **`/bin/init` (PID 1)**: Interactive process launcher using `fork()`, `execve()`, and `waitpid()`.
+  * **`/bin/calc`**: Standalone geometric calculator executable.
+  * **`/bin/sysinfo`**: Standalone system hardware and OS report executable.
+  * **`/bin/bench`**: Standalone CPU, FPU/SSE, memory allocation, and timer benchmark executable.
 * **16550 UART Driver**: Full serial console support over COM1 (`0x3F8`).
 
 ---
@@ -58,23 +61,22 @@ Detailed technical documentation for every subsystem is available in the [`docs/
 
 ---
 
-## 🖥️ Modular Userland `init` Process
+## 🖥️ Multi-ELF Userland Environment
 
 ```text
 ======================================================================
         BangOS (x86_64) - Bare Metal Kernel v0.2.0        
-     PID: 1 | RAM: 128 MB Total (127 MB Free) | Uptime: 1 s
+     PID: 1 (init) | RAM: 128 MB Total (127 MB Free) | Uptime: 0 s
 ======================================================================
 
-Available Applications & System Utilities:
+Available Standalone Applications (Multi-ELF Ramdisk):
 
-  [1] Geometric Calculator           (calc)
-  [2] System Information & Uname     (sysinfo)
-  [3] CPU FPU/SSE & Timer Benchmark  (bench)
-  [4] Dynamic Memory Stress Test     (memtest)
-  [5] Shutdown / Halt System         (exit)
+  [1] Geometric Calculator           (execve /bin/calc)
+  [2] System Information & Uname     (execve /bin/sysinfo)
+  [3] CPU FPU/SSE & Timer Benchmark  (execve /bin/bench)
+  [4] Shutdown / Halt System         (exit)
 
-Select an option [1-5]: 
+Select an option [1-4]: 
 ```
 
 ---
@@ -93,6 +95,7 @@ sudo apt-get install -y \
     ovmf \
     musl \
     musl-tools \
+    tar \
     python3
 ```
 
@@ -102,7 +105,7 @@ sudo apt-get install -y \
 
 ### 1. Build the OS & Bootloader
 
-To compile the user application, bootloader, kernel, and create the FAT ESP image:
+To compile the user applications, build the `initrd.tar` ramdisk, bootloader, kernel, and create the FAT ESP image:
 
 ```bash
 make esp
@@ -118,7 +121,7 @@ make run-qemu
 
 ### 3. Automated Test Suite
 
-Run the integration test suite that spawns QEMU, passes inputs over a TCP serial socket, and verifies execution:
+Run the integration test suite that spawns QEMU, passes inputs over a TCP serial socket, and verifies multi-process execution:
 
 ```bash
 make test
@@ -151,24 +154,24 @@ BangOS/
 │   ├── main.c
 │   ├── arch/x86_64/             # GDT, IDT, Syscall assembly
 │   ├── drivers/                 # 16550 UART serial & Keyboard drivers
+│   ├── fs/                      # In-Memory TarFS ramdisk driver
 │   ├── loader/                  # ELF64 binary loader
 │   ├── mm/                      # Physical frame allocator & 64-bit Paging
-│   ├── process/                 # User process manager
+│   ├── process/                 # Multi-process manager (fork, execve, wait4)
 │   └── syscall/                 # Linux x86_64 syscall handlers
 ├── scripts/
 │   ├── run_qemu_test.sh         # Shell runner wrapper
 │   └── test_runner.py           # Automated test runner with socket I/O
-└── userland/                    # Modular C Userland & init process (musl)
+└── userland/                    # Standalone C Userland applications & initrd
     ├── Makefile
     ├── include/
-    │   ├── app.h
     │   └── tui.h
     └── src/
-        ├── init.c               # PID 1 menu & dispatcher
-        ├── calc.c               # Geometric calculator
-        ├── sysinfo.c            # OS info & hardware report
-        ├── bench.c              # CPU & memory benchmarks
-        └── tui.c                # Terminal UI helpers
+        ├── init.c               # Standalone PID 1 process launcher
+        ├── calc.c               # Standalone geometric calculator binary
+        ├── sysinfo.c            # Standalone system info & hardware report binary
+        ├── bench.c              # Standalone CPU & memory benchmark binary
+        └── tui.c                # Shared terminal UI library
 ```
 
 ---
@@ -178,8 +181,8 @@ BangOS/
 - [x] 64-bit UEFI Bootloader
 - [x] x86_64 GDT, TSS, IDT, Paging (CR3), FPU/SSE support
 - [x] ELF64 Loader & Musl Linux System Call Engine
-- [x] Modular Userland `init` Process with Interactive Menu (Phase 1)
-- [ ] Multi-ELF Execution (`SYS_execve` / Ramdisk - Phase 2)
+- [x] In-Memory TarFS Ramdisk Driver (`initrd.tar`)
+- [x] Multi-ELF Process Execution (`SYS_FORK`, `SYS_EXECVE`, `SYS_WAIT4`)
 - [ ] Preemptive Multitasking & Context Switching
 - [ ] Virtual Memory Manager with Demand Paging & `mmap` backing
 - [ ] ATA / AHCI Storage Drive Driver & FAT32/ext2 Filesystem

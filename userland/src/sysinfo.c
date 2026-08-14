@@ -1,12 +1,14 @@
-#include "app.h"
 #include "tui.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
 
-int app_sysinfo_main(void) {
-    tui_print_header("BangOS System Information & Hardware Report");
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
+    tui_print_header("BangOS System Information & Hardware Report (Standalone ELF)");
 
     struct utsname u;
     if (uname(&u) == 0) {

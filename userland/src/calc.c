@@ -1,10 +1,12 @@
-#include "app.h"
 #include "tui.h"
 #include <stdio.h>
 #include <math.h>
 
-int app_calc_main(void) {
-    tui_print_header("BangOS Geometric Calculator");
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
+    tui_print_header("BangOS Geometric Calculator (Standalone ELF)");
 
     double side1 = 0.0, side2 = 0.0, hypotenuse = 0.0;
 
@@ -12,7 +14,6 @@ int app_calc_main(void) {
     fflush(stdout);
     if (scanf("%lf", &side1) != 1) {
         printf(ANSI_RED "Error: invalid number input.\n" ANSI_RESET);
-        // Clear input line
         int c;
         while ((c = getchar()) != '\n' && c != EOF);
         tui_pause();

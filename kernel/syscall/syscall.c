@@ -2,7 +2,8 @@
 #include "drivers/uart.h"
 #include "drivers/keyboard.h"
 #include "mm/memory.h"
-#include <string.h>
+#include "process/process.h"
+#include "lib/kstring.h"
 
 static uint64_t current_brk = 0x800000000000ULL;
 static uint64_t kernel_boot_tsc = 0;
@@ -19,15 +20,6 @@ static inline uint64_t rdtsc(void) {
     uint32_t lo, hi;
     __asm__ volatile ("rdtsc" : "=a"(lo), "=d"(hi));
     return ((uint64_t)hi << 32) | lo;
-}
-
-static void kstrcpy(char *dst, const char *src, size_t maxlen) {
-    size_t i = 0;
-    while (src[i] != '\0' && i + 1 < maxlen) {
-        dst[i] = src[i];
-        i++;
-    }
-    dst[i] = '\0';
 }
 
 int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
@@ -108,7 +100,9 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
         }
 
         case SYS_MPROTECT:
-        case SYS_MUNMAP: {
+        case SYS_MUNMAP:
+        case SYS_RT_SIGACTION:
+        case SYS_RT_SIGPROCMASK: {
             return 0; // Success
         }
 
@@ -157,28 +151,50 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
                 ws->ws_ypixel = 0;
                 return 0;
             }
-            return 0; // Graceful return for terminal ioctls
+            return 0;
         }
 
         case SYS_LSEEK: {
             return -29; // -ESPIPE
         }
 
-        case SYS_GETPID: {
-            return 1; // Process ID 1 for init
+        case SYS_GETPID:
+        case SYS_GETTID: {
+            process_t *proc = process_get_current();
+            return proc ? (int64_t)proc->pid : 1;
+        }
+
+        case SYS_CLONE:
+        case SYS_FORK:
+        case SYS_VFORK: {
+            process_fork(0, 0, 0);
+            return 0; // Return 0 to execute child branch
+        }
+
+        case SYS_EXECVE: {
+            const char *path = (const char *)arg1;
+            char *const *argv = (char *const *)arg2;
+            char *const *envp = (char *const *)arg3;
+            return (int64_t)process_execve(path, argv, envp);
+        }
+
+        case SYS_WAIT4: {
+            int pid = (int)arg1;
+            int *status = (int *)arg2;
+            return (int64_t)process_wait4(pid, status);
         }
 
         case SYS_UNAME: {
             struct utsname *u = (struct utsname *)arg1;
             if (!u) return -14; // -EFAULT
 
-            memset(u, 0, sizeof(struct utsname));
-            kstrcpy(u->sysname, "BangOS", sizeof(u->sysname));
-            kstrcpy(u->nodename, "bangos", sizeof(u->nodename));
-            kstrcpy(u->release, "0.2.0", sizeof(u->release));
-            kstrcpy(u->version, "#1 SMP Bare-Metal x86_64 UEFI", sizeof(u->version));
-            kstrcpy(u->machine, "x86_64", sizeof(u->machine));
-            kstrcpy(u->domainname, "local", sizeof(u->domainname));
+            kmemset(u, 0, sizeof(struct utsname));
+            kstrncpy(u->sysname, "BangOS", sizeof(u->sysname));
+            kstrncpy(u->nodename, "bangos", sizeof(u->nodename));
+            kstrncpy(u->release, "0.2.0", sizeof(u->release));
+            kstrncpy(u->version, "#1 SMP Bare-Metal x86_64 UEFI", sizeof(u->version));
+            kstrncpy(u->machine, "x86_64", sizeof(u->machine));
+            kstrncpy(u->domainname, "local", sizeof(u->domainname));
             return 0;
         }
 
@@ -186,7 +202,7 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             struct sysinfo *info = (struct sysinfo *)arg1;
             if (!info) return -14; // -EFAULT
 
-            memset(info, 0, sizeof(struct sysinfo));
+            kmemset(info, 0, sizeof(struct sysinfo));
             uint64_t now_cycles = rdtsc() - kernel_boot_tsc;
             info->uptime = (unsigned long)(now_cycles / TSC_FREQ_HZ);
             info->totalram = mm_get_total_bytes();
@@ -239,11 +255,7 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
         case SYS_EXIT:
         case SYS_EXIT_GROUP: {
             int code = (int)arg1;
-            kprintf("\n[Kernel] Process exited with status code: %d\n", code);
-            kprintf("[Kernel] System halting cleanly.\n");
-            while (1) {
-                __asm__ volatile ("cli; hlt");
-            }
+            process_exit(code);
             return 0;
         }
 

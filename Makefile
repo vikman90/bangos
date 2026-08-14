@@ -57,7 +57,7 @@ $(EFI_TARGET): $(EFI_SO) | $(ESP_DIR)
 	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel -j .rela -j .reloc --target=efi-app-x86_64 $< $@
 
 esp: userland $(EFI_TARGET)
-	cp userland/init $(ESP_DIR)/init
+	cp userland/initrd.tar $(ESP_DIR)/initrd.tar
 
 run-qemu: esp
 	qemu-system-x86_64 -m 512M -bios /usr/share/ovmf/OVMF.fd -drive file=fat:rw:$(ESP_DIR),format=raw -serial stdio -nographic -net none -monitor none

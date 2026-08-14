@@ -1,6 +1,6 @@
 # 07 - Extending BangOS Developer Guide
 
-This guide explains step-by-step how to extend **BangOS** by adding new system calls, hardware drivers, or userland C applications.
+This guide explains step-by-step how to extend **BangOS** by adding new system calls, hardware drivers, or standalone userland applications.
 
 ---
 
@@ -55,20 +55,20 @@ To add a new driver (e.g., PIT 8254 timer or full PS/2 keyboard controller):
    ```makefile
    C_SRCS = $(shell find kernel -name "*.c" 2>/dev/null)
    ```
-4. Call driver initialization functions inside `kernel_main()` prior to launching ELF userland binaries.
+4. Call driver initialization functions inside `kernel_main()` prior to launching userland binaries.
 
 ---
 
-## 🏃 Adding New Userland Applications
+## 🏃 Adding New Standalone Userland Applications
 
-The userland environment is organized in `userland/`:
+The userland environment uses standard USTAR `initrd.tar` packaging with standalone ELFs:
 
-1. To add a new utility or subprogram to the modular `init` menu:
-   - Declare the entry function in `userland/include/app.h` (e.g. `int app_snake_main(void);`).
-   - Implement the source in `userland/src/snake.c`.
-   - Add the option and dispatcher call inside `userland/src/init.c`.
-2. The `userland/Makefile` automatically compiles all `.c` files under `userland/src/`:
+1. Create your standalone C source file in `userland/src/myapp.c` with standard `int main(int argc, char **argv)`.
+2. Add your binary target to `userland/Makefile`:
    ```makefile
-   SRCS = $(wildcard src/*.c)
+   $(BIN_DIR)/myapp: src/myapp.c src/tui.o | $(BIN_DIR)
+   	$(CC) $(CFLAGS) $< src/tui.o -o $@ $(LDFLAGS)
    ```
-3. Run `make esp` to build and package into the FAT32 ESP image, then test with `make run-qemu` or `make test`.
+3. Include `myapp` in the `TARGETS` list inside `userland/Makefile` and in the `initrd.tar` archive rule.
+4. Call `launch_program("/bin/myapp", "myapp")` from `userland/src/init.c`.
+5. Run `make esp` to compile and package into `build/esp/initrd.tar`.
