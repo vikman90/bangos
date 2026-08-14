@@ -2,6 +2,9 @@ build/
 *.o
 *.so
 *.EFI
+userland/bin/
+userland/initrd.tar
+userland/init
 app/hipotenusa
 app/hipotenusa.s
 app/hipotenusa.o

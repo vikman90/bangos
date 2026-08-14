@@ -10,7 +10,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 
     Print(L"[Bootloader] Starting 64-bit UEFI Bootloader for BangOS...\n");
 
-    // 1. Locate file system protocol to load /init ELF
+    // 1. Locate file system protocol to load /initrd.tar
     EFI_LOADED_IMAGE *LoadedImage;
     Status = uefi_call_wrapper(BS->HandleProtocol, 3, ImageHandle, &gEfiLoadedImageProtocolGuid, (void **)&LoadedImage);
     if (EFI_ERROR(Status)) {
@@ -32,42 +32,46 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
         return Status;
     }
 
-    EFI_FILE *AppFile;
-    Status = uefi_call_wrapper(RootVolume->Open, 5, RootVolume, &AppFile, L"init", EFI_FILE_MODE_READ, 0);
+    EFI_FILE *RamdiskFile;
+    Status = uefi_call_wrapper(RootVolume->Open, 5, RootVolume, &RamdiskFile, L"initrd.tar", EFI_FILE_MODE_READ, 0);
     if (EFI_ERROR(Status)) {
-        Print(L"[Bootloader Error] Failed to open \\init ELF binary\n");
-        return Status;
+        Print(L"[Bootloader Warning] \\initrd.tar not found, trying \\init fallback...\n");
+        Status = uefi_call_wrapper(RootVolume->Open, 5, RootVolume, &RamdiskFile, L"init", EFI_FILE_MODE_READ, 0);
+        if (EFI_ERROR(Status)) {
+            Print(L"[Bootloader Error] Failed to open payload file\n");
+            return Status;
+        }
     }
 
     // 2. Get file size
     EFI_FILE_INFO *FileInfo;
     UINTN InfoSize = sizeof(EFI_FILE_INFO) + 1024;
     Status = uefi_call_wrapper(BS->AllocatePool, 3, EfiLoaderData, InfoSize, (void **)&FileInfo);
-    Status = uefi_call_wrapper(AppFile->GetInfo, 4, AppFile, &gEfiFileInfoGuid, &InfoSize, FileInfo);
+    Status = uefi_call_wrapper(RamdiskFile->GetInfo, 4, RamdiskFile, &gEfiFileInfoGuid, &InfoSize, FileInfo);
     if (EFI_ERROR(Status)) {
-        Print(L"[Bootloader Error] Failed to get FileInfo for \\init\n");
+        Print(L"[Bootloader Error] Failed to get FileInfo for ramdisk\n");
         return Status;
     }
 
-    UINTN ElfSize = FileInfo->FileSize;
+    UINTN RamdiskSize = FileInfo->FileSize;
     uefi_call_wrapper(BS->FreePool, 1, FileInfo);
 
-    // 3. Allocate memory and read ELF payload
-    void *ElfBuffer = NULL;
-    Status = uefi_call_wrapper(BS->AllocatePool, 3, EfiLoaderData, ElfSize, &ElfBuffer);
+    // 3. Allocate memory and read ramdisk payload
+    void *RamdiskBuffer = NULL;
+    Status = uefi_call_wrapper(BS->AllocatePool, 3, EfiLoaderData, RamdiskSize, &RamdiskBuffer);
     if (EFI_ERROR(Status)) {
-        Print(L"[Bootloader Error] Failed to allocate memory for ELF buffer\n");
+        Print(L"[Bootloader Error] Failed to allocate memory for ramdisk buffer\n");
         return Status;
     }
 
-    Status = uefi_call_wrapper(AppFile->Read, 3, AppFile, &ElfSize, ElfBuffer);
-    uefi_call_wrapper(AppFile->Close, 1, AppFile);
+    Status = uefi_call_wrapper(RamdiskFile->Read, 3, RamdiskFile, &RamdiskSize, RamdiskBuffer);
+    uefi_call_wrapper(RamdiskFile->Close, 1, RamdiskFile);
     if (EFI_ERROR(Status)) {
-        Print(L"[Bootloader Error] Failed to read ELF payload\n");
+        Print(L"[Bootloader Error] Failed to read ramdisk payload\n");
         return Status;
     }
 
-    Print(L"[Bootloader] Loaded \\init ELF (%d bytes) at 0x%lx\n", ElfSize, (UINT64)ElfBuffer);
+    Print(L"[Bootloader] Loaded ramdisk (%d bytes) at 0x%lx\n", RamdiskSize, (UINT64)RamdiskBuffer);
 
     // 4. Get Memory Map
     UINTN MemoryMapSize = 0;
@@ -92,8 +96,8 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
     boot_info.memory_map_size   = MemoryMapSize;
     boot_info.descriptor_size   = DescriptorSize;
     boot_info.descriptor_version= DescriptorVersion;
-    boot_info.elf_paddr         = ElfBuffer;
-    boot_info.elf_size          = ElfSize;
+    boot_info.ramdisk_paddr     = RamdiskBuffer;
+    boot_info.ramdisk_size      = RamdiskSize;
 
     // 6. Exit UEFI Boot Services
     Status = uefi_call_wrapper(BS->ExitBootServices, 2, ImageHandle, MapKey);
