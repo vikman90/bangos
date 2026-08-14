@@ -6,32 +6,39 @@ This guide explains step-by-step how to extend **BangOS** by adding new system c
 
 ## ➕ Adding a New System Call (Syscall)
 
-To add a new Linux syscall (e.g., `SYS_GETPID = 39`):
+To add a new Linux syscall (e.g., `SYS_GETCWD = 79`):
 
 ### 1. Define Constant in `kernel/syscall/syscall.h`
 ```c
-#define SYS_GETPID 39
+#define SYS_GETCWD 79
 ```
 
 ### 2. Implement Handler in `kernel/syscall/syscall.c`
 Add a new `case` inside `do_syscall()`:
 
 ```c
-        case SYS_GETPID: {
-            // Returns current process PID (1 for main application)
-            return 1;
+        case SYS_GETCWD: {
+            char *buf = (char *)arg1;
+            size_t size = (size_t)arg2;
+            if (!buf || size < 2) return -14; // -EFAULT
+            buf[0] = '/';
+            buf[1] = '\0';
+            return (int64_t)buf;
         }
 ```
 
 ### 3. Test New Syscall from C Userland
-Compile an application in `app/` that invokes `getpid()` or uses inline assembly:
+Compile an application in `userland/src/` that invokes `getcwd()`:
 
 ```c
 #include <unistd.h>
 #include <stdio.h>
 
 int main(void) {
-    printf("My PID on BangOS is: %d\n", getpid());
+    char cwd[256];
+    if (getcwd(cwd, sizeof(cwd))) {
+        printf("Current working directory: %s\n", cwd);
+    }
     return 0;
 }
 ```
@@ -54,16 +61,14 @@ To add a new driver (e.g., PIT 8254 timer or full PS/2 keyboard controller):
 
 ## 🏃 Adding New Userland Applications
 
-To change the default user application executed at boot:
+The userland environment is organized in `userland/`:
 
-1. Create or edit C code in `app/calc.c` or create a new file in `app/`.
-2. Update `app/Makefile` if changing the target output binary name.
-3. Update the `esp` rule in the root `Makefile` to copy the new target binary to the FAT32 ESP image:
+1. To add a new utility or subprogram to the modular `init` menu:
+   - Declare the entry function in `userland/include/app.h` (e.g. `int app_snake_main(void);`).
+   - Implement the source in `userland/src/snake.c`.
+   - Add the option and dispatcher call inside `userland/src/init.c`.
+2. The `userland/Makefile` automatically compiles all `.c` files under `userland/src/`:
    ```makefile
-   esp: app $(EFI_TARGET)
-   	cp app/your_new_app $(ESP_DIR)/your_new_app
+   SRCS = $(wildcard src/*.c)
    ```
-4. Update `boot/main.c` to open your new ELF binary file:
-   ```c
-   Status = uefi_call_wrapper(RootVolume->Open, 5, RootVolume, &AppFile, L"your_new_app", EFI_FILE_MODE_READ, 0);
-   ```
+3. Run `make esp` to build and package into the FAT32 ESP image, then test with `make run-qemu` or `make test`.

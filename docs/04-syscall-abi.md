@@ -33,14 +33,20 @@ When userland executes `syscall`:
 | :--- | :--- | :--- | :--- |
 | `0` | `SYS_READ` | `fd`, `buf`, `count` | Reads characters from UART serial console (`COM1`) |
 | `1` | `SYS_WRITE` | `fd`, `buf`, `count` | Writes characters to UART serial console (`COM1`) |
+| `7` | `SYS_POLL` | `fds`, `nfds`, `timeout` | Non-blocking poll for I/O readiness |
 | `8` | `SYS_LSEEK` | `fd`, `offset`, `whence` | Returns `-ESPIPE` (-29) for serial streams |
 | `9` | `SYS_MMAP` | `addr`, `len`, `prot`, ... | Allocates physical/virtual pages dynamically in user space |
 | `10` | `SYS_MPROTECT` | `addr`, `len`, `prot` | Returns `0` (success) |
 | `11` | `SYS_MUNMAP` | `addr`, `len` | Returns `0` (success) |
 | `12` | `SYS_BRK` | `brk_addr` | Queries or expands user process heap boundary |
-| `16` | `SYS_IOCTL` | `fd`, `cmd`, `arg` | Handles `TIOCGWINSZ` (`0x5413`) reporting an 80x24 terminal |
+| `16` | `SYS_IOCTL` | `fd`, `cmd`, `arg` | Handles terminal attributes (`TIOCGWINSZ`, etc.) |
 | `20` | `SYS_WRITEV` | `fd`, `iov`, `iovcnt` | Writes formatted vector buffers produced by `printf()` / `vfprintf()` |
+| `35` | `SYS_NANOSLEEP` | `req`, `rem` | High-precision sleep using calibrated timestamp counter (TSC) |
+| `39` | `SYS_GETPID` | *none* | Returns current process PID (`1` for `init`) |
 | `60` | `SYS_EXIT` | `status` | Prints exit status and cleanly halts the CPU |
+| `63` | `SYS_UNAME` | `buf` | Populates `utsname` (BangOS release, architecture, hostname) |
+| `99` | `SYS_SYSINFO` | `info` | Populates `sysinfo` (total RAM, free RAM, uptime, active procs) |
 | `158` | `SYS_ARCH_PRCTL` | `code`, `addr` | Configures TLS (Thread Local Storage) by writing `MSR_FS_BASE` (`0xC0000100`) |
 | `218` | `SYS_SET_TID_ADDRESS` | `tidptr` | Returns `1` (main process TID) |
+| `228` | `SYS_CLOCK_GETTIME` | `clk_id`, `tp` | Returns monotonic / realtime timestamp in seconds and nanoseconds |
 | `231` | `SYS_EXIT_GROUP` | `status` | Prints exit status and cleanly halts the system |

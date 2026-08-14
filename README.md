@@ -23,10 +23,22 @@ The project is designed to be highly modular and extensible, serving as a clean 
 * **musl C System Calls Implemented**:
   * `SYS_READ` (`0`): Console/Serial stdin input.
   * `SYS_WRITE` (`1`) / `SYS_WRITEV` (`20`): Serial stdout output and text formatting.
+  * `SYS_POLL` (`7`): Non-blocking I/O polling.
   * `SYS_MMAP` (`9`) / `SYS_BRK` (`12`): Memory allocation and user heap growth.
+  * `SYS_NANOSLEEP` (`35`): High-precision sleep with timestamp counter (TSC).
+  * `SYS_GETPID` (`39`): Process ID query (returns `1` for `init`).
+  * `SYS_UNAME` (`63`): System name, version, and architecture query (`struct utsname`).
+  * `SYS_SYSINFO` (`99`): System statistics, uptime, and memory usage (`struct sysinfo`).
   * `SYS_ARCH_PRCTL` (`158`): Thread Local Storage (`FS_BASE` / `GS_BASE`).
   * `SYS_IOCTL` (`16`): Terminal attributes (`TIOCGWINSZ`).
+  * `SYS_CLOCK_GETTIME` (`228`): Monotonic and realtime timestamps with nanosecond precision.
   * `SYS_EXIT` (`60`) / `SYS_EXIT_GROUP` (`231`): Clean process termination and system halt.
+* **Modular Userland (`init`)**:
+  * **PID 1 Interactive Menu**: System banner, status overview, and modular dispatcher.
+  * **Geometric Calculator (`calc`)**: Hypotenuse, perimeter, and area calculation.
+  * **System Information (`sysinfo`)**: Live OS and hardware report using `uname` and `sysinfo`.
+  * **CPU FPU/SSE & Timer Benchmark (`bench`)**: 20M iteration $\pi$ calculation, heap benchmark, and nanosleep verification.
+  * **Dynamic Memory Stress Test (`memtest`)**: Multi-megabyte allocation and data integrity validation.
 * **16550 UART Driver**: Full serial console support over COM1 (`0x3F8`).
 
 ---
@@ -46,28 +58,23 @@ Detailed technical documentation for every subsystem is available in the [`docs/
 
 ---
 
-## 📐 Initial Userland Application: `calc`
-
-To prove bare-metal execution of unmodified C binaries, BangOS loads and runs `app/calc`, an initial static C userland program built with `musl-gcc` that calculates mathematical functions using standard `stdio` and `math.h` (`sqrt()`):
+## 🖥️ Modular Userland `init` Process
 
 ```text
-======================================================
-          BangOS Bare-Metal OS Kernel (x86_64)        
-======================================================
-[Kernel] Boot info received at 1fe96680
-[GDT] 64-bit GDT and TSS loaded successfully.
-[IDT] 64-bit IDT initialized with 256 gates.
-[MM] Dedicated 64-bit Paging CR3 loaded (2000000), 4GB identity mapped.
-[FPU/SSE] Hardware floating-point & SSE extensions enabled.
-[ELF] All segments loaded successfully.
-[Process] Launching ELF process execution (RIP=401108, RSP=7fffefffff00) ...
+======================================================================
+        BangOS (x86_64) - Bare Metal Kernel v0.2.0        
+     PID: 1 | RAM: 128 MB Total (127 MB Free) | Uptime: 1 s
+======================================================================
 
-Enter first side: 3
-Enter second side: 4
-Hypotenuse: 5.00
+Available Applications & System Utilities:
 
-[Kernel] Process exited with status code: 0
-[Kernel] System halting cleanly.
+  [1] Geometric Calculator           (calc)
+  [2] System Information & Uname     (sysinfo)
+  [3] CPU FPU/SSE & Timer Benchmark  (bench)
+  [4] Dynamic Memory Stress Test     (memtest)
+  [5] Shutdown / Halt System         (exit)
+
+Select an option [1-5]: 
 ```
 
 ---
@@ -126,9 +133,6 @@ BangOS/
 ├── Makefile                     # Root build system
 ├── LICENSE                      # MIT License
 ├── README.md                    # Project documentation
-├── app/                         # Initial userland application (calc)
-│   ├── Makefile
-│   └── calc.c
 ├── boot/                        # 64-bit UEFI Bootloader
 │   └── main.c
 ├── docs/                        # Subsystem documentation guides
@@ -151,9 +155,20 @@ BangOS/
 │   ├── mm/                      # Physical frame allocator & 64-bit Paging
 │   ├── process/                 # User process manager
 │   └── syscall/                 # Linux x86_64 syscall handlers
-└── scripts/
-    ├── run_qemu_test.sh         # Shell runner wrapper
-    └── test_runner.py           # Automated test runner with socket I/O
+├── scripts/
+│   ├── run_qemu_test.sh         # Shell runner wrapper
+│   └── test_runner.py           # Automated test runner with socket I/O
+└── userland/                    # Modular C Userland & init process (musl)
+    ├── Makefile
+    ├── include/
+    │   ├── app.h
+    │   └── tui.h
+    └── src/
+        ├── init.c               # PID 1 menu & dispatcher
+        ├── calc.c               # Geometric calculator
+        ├── sysinfo.c            # OS info & hardware report
+        ├── bench.c              # CPU & memory benchmarks
+        └── tui.c                # Terminal UI helpers
 ```
 
 ---
@@ -163,6 +178,8 @@ BangOS/
 - [x] 64-bit UEFI Bootloader
 - [x] x86_64 GDT, TSS, IDT, Paging (CR3), FPU/SSE support
 - [x] ELF64 Loader & Musl Linux System Call Engine
+- [x] Modular Userland `init` Process with Interactive Menu (Phase 1)
+- [ ] Multi-ELF Execution (`SYS_execve` / Ramdisk - Phase 2)
 - [ ] Preemptive Multitasking & Context Switching
 - [ ] Virtual Memory Manager with Demand Paging & `mmap` backing
 - [ ] ATA / AHCI Storage Drive Driver & FAT32/ext2 Filesystem
