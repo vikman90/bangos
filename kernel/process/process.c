@@ -22,7 +22,7 @@ process_t *process_create(const elf_info_t *elf_info) {
     // Setup initial stack for musl libc:
     uint8_t *phys_top = (uint8_t *)stack_phys + (USER_STACK_PAGES * PAGE_SIZE);
     char *arg_str = (char *)(phys_top - 64);
-    strcpy(arg_str, "calc");
+    strcpy(arg_str, "init");
 
     uint64_t argv0_virt = USER_STACK_TOP - 64;
 

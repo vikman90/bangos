@@ -18,7 +18,7 @@ The boot and execution lifecycle of BangOS follows these sequential stages:
 | 2. UEFI Bootloader     |
 +------------------------+
             |
-            |-- Loads \calc (Static ELF64) into physical RAM
+            |-- Loads \init (Static ELF64) into physical RAM
             |-- Fetches physical memory map
             v-- Calls ExitBootServices()
 +------------------------+

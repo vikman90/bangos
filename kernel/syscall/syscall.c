@@ -5,6 +5,9 @@
 #include <string.h>
 
 static uint64_t current_brk = 0x800000000000ULL;
+static uint64_t kernel_boot_tsc = 0;
+
+#define TSC_FREQ_HZ 1000000000ULL // 1.0 GHz baseline TSC frequency for calibration
 
 static inline void write_msr(uint32_t msr, uint64_t val) {
     uint32_t low = val & 0xFFFFFFFF;
@@ -12,9 +15,28 @@ static inline void write_msr(uint32_t msr, uint64_t val) {
     __asm__ volatile ("wrmsr" : : "c"(msr), "a"(low), "d"(high));
 }
 
+static inline uint64_t rdtsc(void) {
+    uint32_t lo, hi;
+    __asm__ volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+    return ((uint64_t)hi << 32) | lo;
+}
+
+static void kstrcpy(char *dst, const char *src, size_t maxlen) {
+    size_t i = 0;
+    while (src[i] != '\0' && i + 1 < maxlen) {
+        dst[i] = src[i];
+        i++;
+    }
+    dst[i] = '\0';
+}
+
 int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
                    uint64_t arg4, uint64_t arg5, uint64_t arg6) {
     (void)arg4; (void)arg5; (void)arg6;
+
+    if (kernel_boot_tsc == 0) {
+        kernel_boot_tsc = rdtsc();
+    }
 
     switch (sys_num) {
         case SYS_READ: {
@@ -67,6 +89,10 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
                 return total_written;
             }
             return -1;
+        }
+
+        case SYS_POLL: {
+            return 1;
         }
 
         case SYS_MMAP: {
@@ -123,7 +149,7 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             uint64_t cmd = arg2;
             void *arg = (void *)arg3;
 
-            if ((fd == 1 || fd == 2) && cmd == 0x5413 && arg) { // TIOCGWINSZ
+            if ((fd == 0 || fd == 1 || fd == 2) && cmd == 0x5413 && arg) { // TIOCGWINSZ
                 struct winsize *ws = (struct winsize *)arg;
                 ws->ws_row = 24;
                 ws->ws_col = 80;
@@ -131,11 +157,79 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
                 ws->ws_ypixel = 0;
                 return 0;
             }
-            return -25; // -ENOTTY
+            return 0; // Graceful return for terminal ioctls
         }
 
         case SYS_LSEEK: {
             return -29; // -ESPIPE
+        }
+
+        case SYS_GETPID: {
+            return 1; // Process ID 1 for init
+        }
+
+        case SYS_UNAME: {
+            struct utsname *u = (struct utsname *)arg1;
+            if (!u) return -14; // -EFAULT
+
+            memset(u, 0, sizeof(struct utsname));
+            kstrcpy(u->sysname, "BangOS", sizeof(u->sysname));
+            kstrcpy(u->nodename, "bangos", sizeof(u->nodename));
+            kstrcpy(u->release, "0.2.0", sizeof(u->release));
+            kstrcpy(u->version, "#1 SMP Bare-Metal x86_64 UEFI", sizeof(u->version));
+            kstrcpy(u->machine, "x86_64", sizeof(u->machine));
+            kstrcpy(u->domainname, "local", sizeof(u->domainname));
+            return 0;
+        }
+
+        case SYS_SYSINFO: {
+            struct sysinfo *info = (struct sysinfo *)arg1;
+            if (!info) return -14; // -EFAULT
+
+            memset(info, 0, sizeof(struct sysinfo));
+            uint64_t now_cycles = rdtsc() - kernel_boot_tsc;
+            info->uptime = (unsigned long)(now_cycles / TSC_FREQ_HZ);
+            info->totalram = mm_get_total_bytes();
+            info->freeram = mm_get_free_bytes();
+            info->procs = 1;
+            info->mem_unit = 1;
+            return 0;
+        }
+
+        case SYS_CLOCK_GETTIME: {
+            int clk_id = (int)arg1;
+            struct timespec *ts = (struct timespec *)arg2;
+            (void)clk_id;
+
+            if (!ts) return -14; // -EFAULT
+
+            uint64_t now_cycles = rdtsc() - kernel_boot_tsc;
+            ts->tv_sec = (int64_t)(now_cycles / TSC_FREQ_HZ);
+            ts->tv_nsec = (int64_t)((now_cycles % TSC_FREQ_HZ) * (1000000000ULL / TSC_FREQ_HZ));
+            return 0;
+        }
+
+        case SYS_NANOSLEEP: {
+            const struct timespec *req = (const struct timespec *)arg1;
+            struct timespec *rem = (struct timespec *)arg2;
+
+            if (!req) return -14; // -EFAULT
+            if (req->tv_sec < 0 || req->tv_nsec < 0 || req->tv_nsec >= 1000000000L) {
+                return -22; // -EINVAL
+            }
+
+            uint64_t target_cycles = ((uint64_t)req->tv_sec * TSC_FREQ_HZ) +
+                                     ((uint64_t)req->tv_nsec * TSC_FREQ_HZ / 1000000000ULL);
+            uint64_t start_tsc = rdtsc();
+            while ((rdtsc() - start_tsc) < target_cycles) {
+                __asm__ volatile ("pause");
+            }
+
+            if (rem) {
+                rem->tv_sec = 0;
+                rem->tv_nsec = 0;
+            }
+            return 0;
         }
 
         case SYS_SET_TID_ADDRESS: {

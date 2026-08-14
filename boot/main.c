@@ -10,7 +10,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 
     Print(L"[Bootloader] Starting 64-bit UEFI Bootloader for BangOS...\n");
 
-    // 1. Locate file system protocol to load /calc ELF
+    // 1. Locate file system protocol to load /init ELF
     EFI_LOADED_IMAGE *LoadedImage;
     Status = uefi_call_wrapper(BS->HandleProtocol, 3, ImageHandle, &gEfiLoadedImageProtocolGuid, (void **)&LoadedImage);
     if (EFI_ERROR(Status)) {
@@ -33,9 +33,9 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
     }
 
     EFI_FILE *AppFile;
-    Status = uefi_call_wrapper(RootVolume->Open, 5, RootVolume, &AppFile, L"calc", EFI_FILE_MODE_READ, 0);
+    Status = uefi_call_wrapper(RootVolume->Open, 5, RootVolume, &AppFile, L"init", EFI_FILE_MODE_READ, 0);
     if (EFI_ERROR(Status)) {
-        Print(L"[Bootloader Error] Failed to open \\calc ELF binary\n");
+        Print(L"[Bootloader Error] Failed to open \\init ELF binary\n");
         return Status;
     }
 
@@ -45,7 +45,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
     Status = uefi_call_wrapper(BS->AllocatePool, 3, EfiLoaderData, InfoSize, (void **)&FileInfo);
     Status = uefi_call_wrapper(AppFile->GetInfo, 4, AppFile, &gEfiFileInfoGuid, &InfoSize, FileInfo);
     if (EFI_ERROR(Status)) {
-        Print(L"[Bootloader Error] Failed to get FileInfo for \\calc\n");
+        Print(L"[Bootloader Error] Failed to get FileInfo for \\init\n");
         return Status;
     }
 
@@ -67,7 +67,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
         return Status;
     }
 
-    Print(L"[Bootloader] Loaded \\calc ELF (%d bytes) at 0x%lx\n", ElfSize, (UINT64)ElfBuffer);
+    Print(L"[Bootloader] Loaded \\init ELF (%d bytes) at 0x%lx\n", ElfSize, (UINT64)ElfBuffer);
 
     // 4. Get Memory Map
     UINTN MemoryMapSize = 0;

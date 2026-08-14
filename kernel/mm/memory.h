@@ -20,4 +20,7 @@ void *alloc_pages(size_t count);
 void map_page(uint64_t virt, uint64_t phys, uint64_t flags);
 void map_user_pages(uint64_t virt, uint64_t phys, size_t page_count);
 
+size_t mm_get_total_bytes(void);
+size_t mm_get_free_bytes(void);
+
 #endif /* MEMORY_H */

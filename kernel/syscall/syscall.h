@@ -6,6 +6,7 @@
 
 #define SYS_READ            0
 #define SYS_WRITE           1
+#define SYS_POLL            7
 #define SYS_LSEEK           8
 #define SYS_MMAP            9
 #define SYS_MPROTECT        10
@@ -13,15 +14,25 @@
 #define SYS_BRK             12
 #define SYS_IOCTL           16
 #define SYS_WRITEV          20
+#define SYS_NANOSLEEP       35
+#define SYS_GETPID          39
 #define SYS_EXIT            60
+#define SYS_UNAME           63
+#define SYS_SYSINFO         99
 #define SYS_ARCH_PRCTL      158
 #define SYS_SET_TID_ADDRESS 218
+#define SYS_CLOCK_GETTIME   228
 #define SYS_EXIT_GROUP      231
 
 #define ARCH_SET_GS 0x1001
 #define ARCH_SET_FS 0x1002
 #define ARCH_GET_FS 0x1003
 #define ARCH_GET_GS 0x1004
+
+#define CLOCK_REALTIME           0
+#define CLOCK_MONOTONIC          1
+#define CLOCK_PROCESS_CPUTIME_ID 2
+#define CLOCK_THREAD_CPUTIME_ID  3
 
 struct iovec {
     void  *iov_base;
@@ -35,6 +46,38 @@ struct winsize {
     unsigned short ws_ypixel;
 };
 
+struct utsname {
+    char sysname[65];
+    char nodename[65];
+    char release[65];
+    char version[65];
+    char machine[65];
+    char domainname[65];
+};
+
+struct sysinfo {
+    unsigned long uptime;
+    unsigned long loads[3];
+    unsigned long totalram;
+    unsigned long freeram;
+    unsigned long sharedram;
+    unsigned long bufferram;
+    unsigned long totalswap;
+    unsigned long freeswap;
+    unsigned short procs;
+    unsigned short pad;
+    unsigned long totalhigh;
+    unsigned long freehigh;
+    unsigned int mem_unit;
+    char __f[256 - 2 * sizeof(unsigned long) - sizeof(unsigned int)];
+};
+
+struct timespec {
+    int64_t tv_sec;
+    int64_t tv_nsec;
+};
+
+void syscall_init_msrs(void);
 int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
                    uint64_t arg4, uint64_t arg5, uint64_t arg6);
 
