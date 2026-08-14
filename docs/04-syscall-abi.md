@@ -42,11 +42,16 @@ When userland executes `syscall`:
 | `16` | `SYS_IOCTL` | `fd`, `cmd`, `arg` | Handles terminal attributes (`TIOCGWINSZ`, etc.) |
 | `20` | `SYS_WRITEV` | `fd`, `iov`, `iovcnt` | Writes formatted vector buffers produced by `printf()` / `vfprintf()` |
 | `35` | `SYS_NANOSLEEP` | `req`, `rem` | High-precision sleep using calibrated timestamp counter (TSC) |
-| `39` | `SYS_GETPID` | *none* | Returns current process PID (`1` for `init`) |
-| `60` | `SYS_EXIT` | `status` | Prints exit status and cleanly halts the CPU |
+| `39` | `SYS_GETPID` | *none* | Returns current process PID |
+| `56` | `SYS_CLONE` | `flags`, `stack`, ... | Process context creation |
+| `57` | `SYS_FORK` | *none* | Creates child process context |
+| `58` | `SYS_VFORK` | *none* | Creates child process context |
+| `59` | `SYS_EXECVE` | `path`, `argv`, `envp` | Replaces current process with new ELF from TarFS ramdisk |
+| `60` | `SYS_EXIT` | `status` | Terminates process, notifies parent via `wait4`, or halts system if PID 1 |
+| `61` | `SYS_WAIT4` | `pid`, `status`, `opts` | Waits for child process termination and retrieves exit status code |
 | `63` | `SYS_UNAME` | `buf` | Populates `utsname` (BangOS release, architecture, hostname) |
 | `99` | `SYS_SYSINFO` | `info` | Populates `sysinfo` (total RAM, free RAM, uptime, active procs) |
 | `158` | `SYS_ARCH_PRCTL` | `code`, `addr` | Configures TLS (Thread Local Storage) by writing `MSR_FS_BASE` (`0xC0000100`) |
-| `218` | `SYS_SET_TID_ADDRESS` | `tidptr` | Returns `1` (main process TID) |
+| `218` | `SYS_SET_TID_ADDRESS` | `tidptr` | Returns process TID |
 | `228` | `SYS_CLOCK_GETTIME` | `clk_id`, `tp` | Returns monotonic / realtime timestamp in seconds and nanoseconds |
-| `231` | `SYS_EXIT_GROUP` | `status` | Prints exit status and cleanly halts the system |
+| `231` | `SYS_EXIT_GROUP` | `status` | Terminates process or halts system if PID 1 |

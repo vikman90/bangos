@@ -18,7 +18,7 @@ The boot and execution lifecycle of BangOS follows these sequential stages:
 | 2. UEFI Bootloader     |
 +------------------------+
             |
-            |-- Loads \init (Static ELF64) into physical RAM
+            |-- Loads \initrd.tar (USTAR Ramdisk) into physical RAM
             |-- Fetches physical memory map
             v-- Calls ExitBootServices()
 +------------------------+
@@ -30,16 +30,18 @@ The boot and execution lifecycle of BangOS follows these sequential stages:
             |-- Builds 4-Level Page Tables (CR3 -> 4GB Identity Map)
             |-- Enables FPU / SSE hardware support in CR0 & CR4
             |-- Configures Syscall MSRs (STAR, LSTAR, SFMASK, EFER.SCE)
+            |-- Initializes In-Memory TarFS ramdisk driver
             v
 +------------------------+
 | 4. ELF Loader Engine   |
 +------------------------+
             |
+            |-- Looks up /bin/init in TarFS ramdisk
             |-- Parses PT_LOAD program headers
             |-- Sets up musl C user stack (argc, argv, envp, AuxV)
             v
 +------------------------+
-| 5. User Process        |  <--- Syscalls (SYS_READ, SYS_WRITE, SYS_MMAP, etc.)
+| 5. Multi-ELF Processes |  <--- Syscalls (SYS_FORK, SYS_EXECVE, SYS_WAIT4, SYS_READ, etc.)
 +------------------------+  ---> Hardware MSR syscall/sysret interface
 ```
 
@@ -49,12 +51,13 @@ The boot and execution lifecycle of BangOS follows these sequential stages:
 
 | Subsystem | Source Location | Description |
 | :--- | :--- | :--- |
-| **UEFI Bootloader** | `boot/main.c` | 64-bit UEFI application that loads the ELF binary into RAM and exits Boot Services. |
+| **UEFI Bootloader** | `boot/main.c` | 64-bit UEFI application that loads the `initrd.tar` ramdisk into RAM and exits Boot Services. |
 | **GDT & TSS** | `kernel/arch/x86_64/gdt.c` | Code and data segment descriptors for Kernel space (Ring 0) and User space (Ring 3). |
 | **IDT & Exceptions** | `kernel/arch/x86_64/idt.c` | Central dispatcher for all 256 x86_64 CPU interrupts and exceptions. |
 | **Paging & MM** | `kernel/mm/memory.c` | 4KB physical frame allocator and 4-level Page Table manager (PML4, PDPT, PD, PT). |
 | **FPU/SSE Initializer**| `kernel/main.c` | Configures CR0/CR4 control registers for hardware SIMD floating-point execution. |
-| **ELF64 Loader** | `kernel/loader/elf.c` | Parser for 64-bit ELF executable binaries. |
-| **Process Manager** | `kernel/process/process.c` | Prepares user memory space and initial C ABI stack layout. |
+| **In-Memory TarFS** | `kernel/fs/tarfs.c` | USTAR ramdisk parser for loading standalone userland binaries from memory. |
+| **ELF64 Loader** | `kernel/loader/elf.c` | Parser and mapper for 64-bit ELF executable binaries. |
+| **Process Manager** | `kernel/process/process.c` | Multi-process management, context switching, `fork()`, `execve()`, and `wait4()`. |
 | **Syscall Engine** | `kernel/syscall/syscall.c` | Linux x86_64 ABI system call dispatcher. |
 | **16550 UART Driver** | `kernel/drivers/uart.c` | Serial console driver over COM1 (`0x3F8`) at 38400 baud. |
