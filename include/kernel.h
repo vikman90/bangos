@@ -10,8 +10,14 @@ typedef struct {
     uint64_t  memory_map_size;
     uint64_t  descriptor_size;
     uint32_t  descriptor_version;
-    void     *elf_paddr;
-    uint64_t  elf_size;
+    union {
+        void *ramdisk_paddr;
+        void *elf_paddr;
+    };
+    union {
+        uint64_t ramdisk_size;
+        uint64_t elf_size;
+    };
 } boot_info_t;
 
 void kernel_main(boot_info_t *boot_info);
