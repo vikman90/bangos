@@ -24,12 +24,12 @@ KERNEL_OBJS = $(C_OBJS) $(ASM_OBJS)
 EFI_SO = $(BUILD_DIR)/bangos.so
 EFI_TARGET = $(ESP_DIR)/EFI/BOOT/BOOTX64.EFI
 
-.PHONY: all app esp run-qemu test clean
+.PHONY: all userland esp run-qemu test clean
 
-all: app esp
+all: userland esp
 
-app:
-	$(MAKE) -C app
+userland:
+	$(MAKE) -C userland
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -56,8 +56,8 @@ $(EFI_SO): $(BOOT_OBJ) $(KERNEL_OBJS)
 $(EFI_TARGET): $(EFI_SO) | $(ESP_DIR)
 	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel -j .rela -j .reloc --target=efi-app-x86_64 $< $@
 
-esp: app $(EFI_TARGET)
-	cp app/calc $(ESP_DIR)/calc
+esp: userland $(EFI_TARGET)
+	cp userland/init $(ESP_DIR)/init
 
 run-qemu: esp
 	qemu-system-x86_64 -m 512M -bios /usr/share/ovmf/OVMF.fd -drive file=fat:rw:$(ESP_DIR),format=raw -serial stdio -nographic -net none -monitor none
@@ -67,4 +67,4 @@ test: esp
 
 clean:
 	rm -rf $(BUILD_DIR)
-	$(MAKE) -C app clean
+	$(MAKE) -C userland clean
