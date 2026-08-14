@@ -1,4 +1,3 @@
-#include "app.h"
 #include "tui.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,6 +5,7 @@
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
+#include <sys/wait.h>
 
 static void print_system_banner(void) {
     struct utsname u;
@@ -19,20 +19,41 @@ static void print_system_banner(void) {
 
     printf("\n" ANSI_BOLD ANSI_BLUE "======================================================================" ANSI_RESET "\n");
     printf(ANSI_BOLD ANSI_CYAN "        %s (x86_64) - Bare Metal Kernel v%s        " ANSI_RESET "\n", u.sysname, u.release);
-    printf(ANSI_DIM "     PID: %d | RAM: %lu MB Total (%lu MB Free) | Uptime: %lu s" ANSI_RESET "\n",
+    printf(ANSI_DIM "     PID: %d (init) | RAM: %lu MB Total (%lu MB Free) | Uptime: %lu s" ANSI_RESET "\n",
            getpid(), total_mb, free_mb, s.uptime);
     printf(ANSI_BOLD ANSI_BLUE "======================================================================" ANSI_RESET "\n\n");
 }
 
 static void show_menu(void) {
-    printf(ANSI_BOLD "Available Applications & System Utilities:" ANSI_RESET "\n\n");
-    printf("  " ANSI_BOLD ANSI_GREEN "[1]" ANSI_RESET " Geometric Calculator           (calc)\n");
-    printf("  " ANSI_BOLD ANSI_GREEN "[2]" ANSI_RESET " System Information & Uname     (sysinfo)\n");
-    printf("  " ANSI_BOLD ANSI_GREEN "[3]" ANSI_RESET " CPU FPU/SSE & Timer Benchmark  (bench)\n");
-    printf("  " ANSI_BOLD ANSI_GREEN "[4]" ANSI_RESET " Dynamic Memory Stress Test     (memtest)\n");
-    printf("  " ANSI_BOLD ANSI_RED   "[5]" ANSI_RESET " Shutdown / Halt System         (exit)\n\n");
-    printf(ANSI_BOLD ANSI_YELLOW "Select an option [1-5]: " ANSI_RESET);
+    printf(ANSI_BOLD "Available Standalone Applications (Multi-ELF Ramdisk):" ANSI_RESET "\n\n");
+    printf("  " ANSI_BOLD ANSI_GREEN "[1]" ANSI_RESET " Geometric Calculator           (execve /bin/calc)\n");
+    printf("  " ANSI_BOLD ANSI_GREEN "[2]" ANSI_RESET " System Information & Uname     (execve /bin/sysinfo)\n");
+    printf("  " ANSI_BOLD ANSI_GREEN "[3]" ANSI_RESET " CPU FPU/SSE & Timer Benchmark  (execve /bin/bench)\n");
+    printf("  " ANSI_BOLD ANSI_RED   "[4]" ANSI_RESET " Shutdown / Halt System         (exit)\n\n");
+    printf(ANSI_BOLD ANSI_YELLOW "Select an option [1-4]: " ANSI_RESET);
     fflush(stdout);
+}
+
+static int launch_program(const char *path, const char *name) {
+    printf(ANSI_DIM "Spawning process '%s' via fork() + execve()...\n" ANSI_RESET, path);
+    fflush(stdout);
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Child process
+        char *argv[] = { (char *)name, NULL };
+        execve(path, argv, NULL);
+        printf(ANSI_RED "Error: execve('%s') failed.\n" ANSI_RESET, path);
+        exit(127);
+    } else if (pid > 0) {
+        // Parent process
+        int status = 0;
+        waitpid(pid, &status, 0);
+        return status;
+    } else {
+        printf(ANSI_RED "Error: fork() failed.\n" ANSI_RESET);
+        return -1;
+    }
 }
 
 int main(int argc, char **argv) {
@@ -49,19 +70,17 @@ int main(int argc, char **argv) {
         }
 
         if (strcmp(line, "1") == 0 || strcmp(line, "calc") == 0) {
-            app_calc_main();
+            launch_program("/bin/calc", "calc");
         } else if (strcmp(line, "2") == 0 || strcmp(line, "sysinfo") == 0) {
-            app_sysinfo_main();
+            launch_program("/bin/sysinfo", "sysinfo");
         } else if (strcmp(line, "3") == 0 || strcmp(line, "bench") == 0) {
-            app_bench_main();
-        } else if (strcmp(line, "4") == 0 || strcmp(line, "memtest") == 0) {
-            app_memtest_main();
-        } else if (strcmp(line, "5") == 0 || strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
+            launch_program("/bin/bench", "bench");
+        } else if (strcmp(line, "4") == 0 || strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
             printf("\n" ANSI_BOLD ANSI_RED "Shutting down BangOS system cleanly..." ANSI_RESET "\n");
             fflush(stdout);
             exit(0);
         } else if (strlen(line) > 0) {
-            printf(ANSI_RED "Invalid selection '%s'. Please choose an option between 1 and 5.\n" ANSI_RESET, line);
+            printf(ANSI_RED "Invalid selection '%s'. Please choose an option between 1 and 4.\n" ANSI_RESET, line);
             tui_pause();
         }
     }

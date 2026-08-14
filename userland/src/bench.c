@@ -1,4 +1,3 @@
-#include "app.h"
 #include "tui.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,8 +13,11 @@ static double get_time_sec(void) {
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
-int app_bench_main(void) {
-    tui_print_header("BangOS CPU, FPU/SSE & Timer Benchmark");
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
+    tui_print_header("BangOS CPU, FPU/SSE & Memory Benchmark (Standalone ELF)");
 
     // 1. FPU / SSE Math Benchmark
     printf(ANSI_BOLD ANSI_CYAN "[1/3] Floating-Point / SSE Benchmark (20M Iterations)" ANSI_RESET "\n");
@@ -79,58 +81,4 @@ int app_bench_main(void) {
     tui_print_divider();
     tui_pause();
     return 0;
-}
-
-int app_memtest_main(void) {
-    tui_print_header("BangOS Dynamic Memory Stress Test");
-
-    printf("Allocating sequential memory blocks up to 8 MB...\n");
-    fflush(stdout);
-
-    const size_t block_size = 256 * 1024; // 256 KB
-    const int num_blocks = 32;            // 8 MB total
-    void *blocks[32];
-    int success_count = 0;
-
-    for (int i = 0; i < num_blocks; i++) {
-        blocks[i] = malloc(block_size);
-        if (!blocks[i]) {
-            printf(ANSI_RED "Failed to allocate block %d (out of memory).\n" ANSI_RESET, i);
-            break;
-        }
-
-        // Fill pattern
-        unsigned char *buf = (unsigned char *)blocks[i];
-        for (size_t b = 0; b < block_size; b += 64) {
-            buf[b] = (unsigned char)(i + (b & 0xFF));
-        }
-        success_count++;
-    }
-
-    printf(ANSI_GREEN "Successfully allocated and populated %d blocks (%zu KB).\n" ANSI_RESET,
-           success_count, (success_count * block_size) / 1024);
-
-    printf("Verifying memory integrity across all blocks...\n");
-    bool integrity_ok = true;
-    for (int i = 0; i < success_count; i++) {
-        unsigned char *buf = (unsigned char *)blocks[i];
-        for (size_t b = 0; b < block_size; b += 64) {
-            if (buf[b] != (unsigned char)(i + (b & 0xFF))) {
-                integrity_ok = false;
-                printf(ANSI_RED "Data corruption detected in block %d offset %zu!\n" ANSI_RESET, i, b);
-                break;
-            }
-        }
-        free(blocks[i]);
-    }
-
-    if (integrity_ok) {
-        printf(ANSI_BOLD ANSI_GREEN "Memory Integrity Verification: PASSED (100%% OK)" ANSI_RESET "\n");
-    } else {
-        printf(ANSI_BOLD ANSI_RED "Memory Integrity Verification: FAILED" ANSI_RESET "\n");
-    }
-
-    tui_print_divider();
-    tui_pause();
-    return integrity_ok ? 0 : 1;
 }
