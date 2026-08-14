@@ -1,5 +1,4 @@
 #ifndef IDT_H
-#ifndef KERNEL_H
 #define IDT_H
 
 #include <stdint.h>
@@ -14,5 +13,4 @@ typedef struct {
 void idt_init(void);
 void exception_handler(exception_frame_t *frame);
 
-#endif
-#endif
+#endif /* IDT_H */

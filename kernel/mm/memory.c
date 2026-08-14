@@ -129,3 +129,17 @@ void map_user_pages(uint64_t virt, uint64_t phys, size_t page_count) {
     }
     write_cr3((uint64_t)kernel_pml4); // Flush TLB across all pages
 }
+
+size_t mm_get_total_bytes(void) {
+    return (size_t)MAX_PAGES * PAGE_SIZE;
+}
+
+size_t mm_get_free_bytes(void) {
+    size_t free_count = 0;
+    for (size_t i = 0; i < MAX_PAGES; i++) {
+        if ((page_bitmap[i / 8] & (1 << (i % 8))) == 0) {
+            free_count++;
+        }
+    }
+    return free_count * PAGE_SIZE;
+}
