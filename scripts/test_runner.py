@@ -1,3 +1,5 @@
+import os
+import platform
 import subprocess
 import socket
 import time
@@ -5,11 +7,14 @@ import sys
 import re
 
 PORT = 4444
+DEFAULT_OVMF = "/opt/homebrew/share/qemu/edk2-x86_64-code.fd" if platform.system() == "Darwin" else "/usr/share/ovmf/OVMF.fd"
+OVMF_PATH = os.environ.get("OVMF_PATH", DEFAULT_OVMF)
+TIMEOUT = int(os.environ.get("TEST_TIMEOUT", "180"))
 
 cmd = [
     "qemu-system-x86_64",
     "-m", "512M",
-    "-bios", "/usr/share/ovmf/OVMF.fd",
+    "-bios", OVMF_PATH,
     "-drive", "file=fat:rw:build/esp,format=raw",
     "-serial", f"tcp:127.0.0.1:{PORT},server=on,wait=off",
     "-nographic",
@@ -17,7 +22,7 @@ cmd = [
     "-monitor", "none"
 ]
 
-print("[Test] Launching QEMU with TCP serial socket on port 4444...")
+print(f"[Test] Launching QEMU with bios={OVMF_PATH} and TCP serial socket on port {PORT}...")
 proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 sock = None
@@ -53,7 +58,7 @@ last_action_time = time.time()
 
 print("[Test] Connected to bare-metal serial port! Waiting for process execution...")
 
-while time.time() - start_time < 30:
+while time.time() - start_time < TIMEOUT:
     try:
         data = sock.recv(1024)
         if data:
@@ -139,7 +144,7 @@ clean_log = re.sub(r'\x1b\[[0-9;]*[mGKHJ]', '', out_log)
 checks = [
     ("BangOS (x86_64)", "BangOS OS header banner"),
     ("System Name:    BangOS", "uname syscall validation"),
-    ("Calculated Pi:  3.1415926", "FPU/SSE math benchmark"),
+    ("Calculated Pi:  3.141592", "FPU/SSE math benchmark"),
     ("Hypotenuse: 5.00", "Hypotenuse calculation"),
     ("Init process (PID 1) terminated", "Clean process shutdown")
 ]

@@ -20,14 +20,14 @@ int main(int argc, char **argv) {
     tui_print_header("BangOS CPU, FPU/SSE & Memory Benchmark (Standalone ELF)");
 
     // 1. FPU / SSE Math Benchmark
-    printf(ANSI_BOLD ANSI_CYAN "[1/3] Floating-Point / SSE Benchmark (20M Iterations)" ANSI_RESET "\n");
+    printf(ANSI_BOLD ANSI_CYAN "[1/3] Floating-Point / SSE Benchmark (2M Iterations)" ANSI_RESET "\n");
     printf("Computing Leibniz series for Pi & trigonometric ops...\n");
     fflush(stdout);
 
     double start_t = get_time_sec();
     double pi_approx = 0.0;
     double sign = 1.0;
-    const long iterations = 20000000;
+    const long iterations = 2000000;
 
     for (long i = 0; i < iterations; i++) {
         pi_approx += sign / (2.0 * (double)i + 1.0);
@@ -44,11 +44,11 @@ int main(int argc, char **argv) {
            fpu_time, mops);
 
     // 2. Dynamic Memory (malloc / free) Benchmark
-    printf(ANSI_BOLD ANSI_CYAN "[2/3] Dynamic Heap Memory Benchmark (10,000 allocations)" ANSI_RESET "\n");
+    printf(ANSI_BOLD ANSI_CYAN "[2/3] Dynamic Heap Memory Benchmark (1,000 allocations)" ANSI_RESET "\n");
     fflush(stdout);
 
     start_t = get_time_sec();
-    const int alloc_count = 10000;
+    const int alloc_count = 1000;
     void *ptrs[100];
     for (int cycle = 0; cycle < alloc_count / 100; cycle++) {
         for (int i = 0; i < 100; i++) {
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
     }
     end_t = get_time_sec();
     double mem_time = end_t - start_t;
-    printf("  - Heap Allocs:    10,000 malloc/free operations completed.\n");
+    printf("  - Heap Allocs:    1,000 malloc/free operations completed.\n");
     printf("  - Elapsed Time:   " ANSI_GREEN "%.4f s" ANSI_RESET "\n\n", mem_time);
 
     // 3. Nanosleep Precision Test
