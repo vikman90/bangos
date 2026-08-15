@@ -127,6 +127,21 @@ Run the integration test suite that spawns QEMU, passes inputs over a TCP serial
 make test
 ```
 
+### 4. Docker / macOS Workflow (Apple Silicon M-Series & Cross-Compile)
+
+For building on macOS or environments without bare-metal Linux toolchains:
+
+```bash
+# Build OS artifacts inside Docker container
+make docker-build
+
+# Run automated integration tests inside Docker
+make docker-test
+
+# Open interactive bash inside the build container
+make docker-shell
+```
+
 ---
 
 ## 📁 Repository Structure

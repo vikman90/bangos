@@ -24,7 +24,16 @@ KERNEL_OBJS = $(C_OBJS) $(ASM_OBJS)
 EFI_SO = $(BUILD_DIR)/bangos.so
 EFI_TARGET = $(ESP_DIR)/EFI/BOOT/BOOTX64.EFI
 
-.PHONY: all userland esp run-qemu test clean
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    OVMF_PATH ?= /opt/homebrew/share/qemu/edk2-x86_64-code.fd
+else
+    OVMF_PATH ?= /usr/share/ovmf/OVMF.fd
+endif
+
+DOCKER_IMAGE ?= bangos-builder
+
+.PHONY: all userland esp run-qemu test clean docker-image docker-build docker-test docker-shell
 
 all: userland esp
 
@@ -60,11 +69,25 @@ esp: userland $(EFI_TARGET)
 	cp userland/initrd.tar $(ESP_DIR)/initrd.tar
 
 run-qemu: esp
-	qemu-system-x86_64 -m 512M -bios /usr/share/ovmf/OVMF.fd -drive file=fat:rw:$(ESP_DIR),format=raw -serial stdio -nographic -net none -monitor none
+	qemu-system-x86_64 -m 512M -bios $(OVMF_PATH) -drive file=fat:rw:$(ESP_DIR),format=raw -serial stdio -nographic -net none -monitor none
+
+TEST_TIMEOUT ?= 180
 
 test: esp
-	chmod +x scripts/run_qemu_test.sh && ./scripts/run_qemu_test.sh
+	chmod +x scripts/run_qemu_test.sh && OVMF_PATH="$(OVMF_PATH)" TEST_TIMEOUT="$(TEST_TIMEOUT)" ./scripts/run_qemu_test.sh
 
 clean:
 	rm -rf $(BUILD_DIR)
 	$(MAKE) -C userland clean
+
+docker-image:
+	docker build --platform linux/amd64 -t $(DOCKER_IMAGE) .
+
+docker-build: docker-image
+	docker run --rm --platform linux/amd64 -v "$$(pwd):/bangos" $(DOCKER_IMAGE) make clean all
+
+docker-test: docker-image
+	docker run --rm --platform linux/amd64 -v "$$(pwd):/bangos" $(DOCKER_IMAGE) make test
+
+docker-shell: docker-image
+	docker run --rm -it --platform linux/amd64 -v "$$(pwd):/bangos" $(DOCKER_IMAGE) bash
