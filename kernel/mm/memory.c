@@ -16,14 +16,39 @@ static inline void invlpg(uint64_t virt) {
     __asm__ volatile ("invlpg (%0)" : : "r"(virt) : "memory");
 }
 
-void *alloc_page(void) {
-    for (size_t i = 0; i < MAX_PAGES; i++) {
-        if ((page_bitmap[i / 8] & (1 << (i % 8))) == 0) {
-            page_bitmap[i / 8] |= (1 << (i % 8));
+void *alloc_pages(size_t count) {
+    if (count == 0) return NULL;
+
+    for (size_t i = 0; i <= MAX_PAGES - count; ) {
+        // Fast-path: skip fully allocated 64-frame blocks
+        if ((i % 64 == 0) && count <= 64) {
+            const uint64_t *bm64 = (const uint64_t *)page_bitmap;
+            while (i <= MAX_PAGES - 64 && bm64[i / 64] == ~0ULL) {
+                i += 64;
+            }
+            if (i > MAX_PAGES - count) break;
+        }
+
+        bool free_found = true;
+        size_t next_check = i + 1;
+        for (size_t j = 0; j < count; j++) {
+            if (page_bitmap[(i + j) / 8] & (1 << ((i + j) % 8))) {
+                free_found = false;
+                next_check = i + j + 1;
+                break;
+            }
+        }
+
+        if (free_found) {
+            for (size_t j = 0; j < count; j++) {
+                page_bitmap[(i + j) / 8] |= (1 << ((i + j) % 8));
+            }
             uint64_t addr = phys_memory_base + (i * PAGE_SIZE);
-            memset((void *)addr, 0, PAGE_SIZE);
+            memset((void *)addr, 0, count * PAGE_SIZE);
             return (void *)addr;
         }
+
+        i = next_check;
     }
     kprintf("[MM Panic] Out of physical memory frames!\n");
     return NULL;
@@ -38,26 +63,8 @@ void free_page(void *ptr) {
     }
 }
 
-void *alloc_pages(size_t count) {
-    if (count == 0) return NULL;
-    for (size_t i = 0; i <= MAX_PAGES - count; i++) {
-        bool free_found = true;
-        for (size_t j = 0; j < count; j++) {
-            if (page_bitmap[(i + j) / 8] & (1 << ((i + j) % 8))) {
-                free_found = false;
-                break;
-            }
-        }
-        if (free_found) {
-            for (size_t j = 0; j < count; j++) {
-                page_bitmap[(i + j) / 8] |= (1 << ((i + j) % 8));
-            }
-            uint64_t addr = phys_memory_base + (i * PAGE_SIZE);
-            memset((void *)addr, 0, count * PAGE_SIZE);
-            return (void *)addr;
-        }
-    }
-    return NULL;
+void *alloc_page(void) {
+    return alloc_pages(1);
 }
 
 void mm_init(boot_info_t *boot_info) {
@@ -127,7 +134,6 @@ void map_user_pages(uint64_t virt, uint64_t phys, size_t page_count) {
     for (size_t i = 0; i < page_count; i++) {
         map_page(virt + (i * PAGE_SIZE), phys + (i * PAGE_SIZE), PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER);
     }
-    write_cr3((uint64_t)kernel_pml4); // Flush TLB across all pages
 }
 
 size_t mm_get_total_bytes(void) {
