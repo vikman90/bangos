@@ -43,10 +43,20 @@ typedef struct {
     uint64_t p_align;
 } Elf64_Phdr;
 
+#define MAX_ELF_SEGMENTS 8
+
 typedef struct {
-    uint64_t entry_point;
-    uint64_t min_vaddr;
-    uint64_t max_vaddr;
+    uint64_t virt_addr;
+    uint64_t phys_addr;
+    size_t   num_pages;
+} elf_segment_t;
+
+typedef struct {
+    uint64_t      entry_point;
+    uint64_t      min_vaddr;
+    uint64_t      max_vaddr;
+    size_t        num_segments;
+    elf_segment_t segments[MAX_ELF_SEGMENTS];
 } elf_info_t;
 
 int elf_load_binary(const void *elf_data, size_t elf_size, elf_info_t *out_info);
