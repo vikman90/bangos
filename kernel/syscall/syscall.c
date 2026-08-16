@@ -5,7 +5,9 @@
 #include "process/process.h"
 #include "lib/kstring.h"
 
-static uint64_t current_brk = 0x800000000000ULL;
+static uint64_t current_brk = 0x600000000000ULL;
+static uint64_t mapped_brk_page = 0x600000000000ULL;
+static uint64_t current_mmap = 0x700000000000ULL;
 static uint64_t kernel_boot_tsc = 0;
 
 #define TSC_FREQ_HZ 1000000000ULL // 1.0 GHz baseline TSC frequency for calibration
@@ -93,8 +95,8 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             size_t num_pages = (len + PAGE_SIZE - 1) / PAGE_SIZE;
             void *phys = alloc_pages(num_pages);
             if (!phys) return -12; // -ENOMEM
-            uint64_t virt_addr = current_brk;
-            current_brk += num_pages * PAGE_SIZE;
+            uint64_t virt_addr = current_mmap;
+            current_mmap += num_pages * PAGE_SIZE;
             map_user_pages(virt_addr, (uint64_t)phys, num_pages);
             return (int64_t)virt_addr;
         }
@@ -125,11 +127,13 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             if (new_brk == 0) {
                 return (int64_t)current_brk;
             }
-            if (new_brk > current_brk) {
-                size_t num_pages = (new_brk - current_brk + PAGE_SIZE - 1) / PAGE_SIZE;
+            if (new_brk > mapped_brk_page) {
+                uint64_t target_page = (new_brk + PAGE_SIZE - 1) & ~0xFFFULL;
+                size_t num_pages = (target_page - mapped_brk_page) / PAGE_SIZE;
                 void *phys = alloc_pages(num_pages);
                 if (phys) {
-                    map_user_pages(current_brk, (uint64_t)phys, num_pages);
+                    map_user_pages(mapped_brk_page, (uint64_t)phys, num_pages);
+                    mapped_brk_page = target_page;
                     current_brk = new_brk;
                 }
             } else {
