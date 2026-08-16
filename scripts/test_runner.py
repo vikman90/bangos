@@ -52,7 +52,14 @@ start_time = time.time()
 # 5: calc sent, waiting for calc prompt
 # 6: sides sent, waiting for calc results
 # 7: return from calc, waiting for menu
-# 8: exit sent, waiting for clean shutdown
+# 8: tasks sent, waiting for tasks prompt
+# 9: status & ping sent in tasks, waiting for response
+# 10: exit sent in tasks, waiting for init menu
+# 11: threads sent, waiting for threads menu
+# 12: run all tests (4) sent in threads, waiting for completion
+# 13: pause dismissed in threads, waiting for threads menu
+# 14: exit (5) sent in threads, waiting for init menu
+# 15: exit (6) sent in init, waiting for clean shutdown
 state = 0
 last_action_time = time.time()
 
@@ -73,9 +80,9 @@ while time.time() - start_time < TIMEOUT:
 
     now = time.time()
 
-    if state == 0 and "Select an option [1-4]:" in out_log:
+    if state == 0 and "Select an option [1-6]:" in out_log:
         time.sleep(0.3)
-        print("\n[Test Step 1/4] Spawning Standalone /bin/sysinfo via fork+execve (Option 2)...")
+        print("\n[Test Step 1/6] Spawning Standalone /bin/sysinfo via fork+execve (Option 2)...")
         sock.sendall(b"2\r\n")
         state = 1
         last_action_time = now
@@ -87,9 +94,9 @@ while time.time() - start_time < TIMEOUT:
         state = 2
         last_action_time = now
 
-    elif state == 2 and out_log.count("Select an option [1-4]:") >= 2:
+    elif state == 2 and out_log.count("Select an option [1-6]:") >= 2:
         time.sleep(0.3)
-        print("\n[Test Step 2/4] Spawning Standalone /bin/bench via fork+execve (Option 3)...")
+        print("\n[Test Step 2/6] Spawning Standalone /bin/bench via fork+execve (Option 3)...")
         sock.sendall(b"3\r\n")
         state = 3
         last_action_time = now
@@ -101,9 +108,9 @@ while time.time() - start_time < TIMEOUT:
         state = 4
         last_action_time = now
 
-    elif state == 4 and out_log.count("Select an option [1-4]:") >= 3:
+    elif state == 4 and out_log.count("Select an option [1-6]:") >= 3:
         time.sleep(0.3)
-        print("\n[Test Step 3/4] Spawning Standalone /bin/calc via fork+execve (Option 1)...")
+        print("\n[Test Step 3/6] Spawning Standalone /bin/calc via fork+execve (Option 1)...")
         sock.sendall(b"1\r\n")
         state = 5
         last_action_time = now
@@ -122,15 +129,64 @@ while time.time() - start_time < TIMEOUT:
         state = 7
         last_action_time = now
 
-    elif state == 7 and out_log.count("Select an option [1-4]:") >= 4:
+    elif state == 7 and out_log.count("Select an option [1-6]:") >= 4:
         time.sleep(0.3)
-        print("\n[Test Step 4/4] Requesting System Halt/Exit (Option 4)...")
+        print("\n[Test Step 4/6] Spawning Preemptive Multitasking /bin/tasks (Option 4)...")
         sock.sendall(b"4\r\n")
         state = 8
         last_action_time = now
 
-    elif state == 8 and ("PID=1 exited with status code: 0" in out_log or "Init process (PID 1) terminated" in out_log):
-        print("\n\n[SUCCESS] All standalone ELF executions and syscalls verified successfully!")
+    elif state == 8 and "Available commands: 'status', 'ping', 'stats', 'spawn', 'exit'" in out_log:
+        time.sleep(0.4)
+        print("\n[Test] Sending interactive commands 'status' and 'ping' to /bin/tasks...")
+        sock.sendall(b"status\r\nping\r\n")
+        state = 9
+        last_action_time = now
+
+    elif state == 9 and "pong" in out_log:
+        time.sleep(0.3)
+        print("\n[Test] Exiting /bin/tasks...")
+        sock.sendall(b"exit\r\n")
+        state = 10
+        last_action_time = now
+
+    elif state == 10 and out_log.count("Select an option [1-6]:") >= 5:
+        time.sleep(0.3)
+        print("\n[Test Step 5/6] Spawning Multithreading & Synchronization /bin/threads (Option 5)...")
+        sock.sendall(b"5\r\n")
+        state = 11
+        last_action_time = now
+
+    elif state == 11 and "Select an option [1-5]:" in out_log:
+        time.sleep(0.3)
+        print("\n[Test] Running all Multithreading Synchronization tests (Option 4)...")
+        sock.sendall(b"4\r\n")
+        state = 12
+        last_action_time = now
+
+    elif state == 12 and "Producer-Consumer pipeline completed" in out_log and ("Press Enter to return to main menu..." in out_log[len(out_log)-200:] or "Press Enter" in out_log[len(out_log)-200:]):
+        time.sleep(0.3)
+        print("\n[Test] Dismissing pause in /bin/threads...")
+        sock.sendall(b"\r\n")
+        state = 13
+        last_action_time = now
+
+    elif state == 13 and out_log.count("Select an option [1-5]:") >= 2:
+        time.sleep(0.3)
+        print("\n[Test] Returning to init menu from /bin/threads (Option 5)...")
+        sock.sendall(b"5\r\n")
+        state = 14
+        last_action_time = now
+
+    elif state == 14 and out_log.count("Select an option [1-6]:") >= 6:
+        time.sleep(0.3)
+        print("\n[Test Step 6/6] Requesting System Halt/Exit (Option 6)...")
+        sock.sendall(b"6\r\n")
+        state = 15
+        last_action_time = now
+
+    elif state == 15 and ("PID=1 exited with status code: 0" in out_log or "Init process (PID 1) terminated" in out_log):
+        print("\n\n[SUCCESS] All standalone ELF executions, multitasking and multithreading verified successfully!")
         sock.close()
         proc.kill()
         sys.exit(0)
@@ -146,6 +202,10 @@ checks = [
     ("System Name:    BangOS", "uname syscall validation"),
     ("Calculated Pi:  3.141592", "FPU/SSE math benchmark"),
     ("Hypotenuse: 5.00", "Hypotenuse calculation"),
+    ("System Multitasking Status: ACTIVE", "Preemptive multitasking /bin/tasks"),
+    ("pong", "UART interaction during background task"),
+    ("MUTEX SYNCHRONIZATION SUCCESS!", "Thread Mutex atomic synchronization"),
+    ("Producer-Consumer pipeline completed", "Counting Semaphore synchronization"),
     ("Init process (PID 1) terminated", "Clean process shutdown")
 ]
 
