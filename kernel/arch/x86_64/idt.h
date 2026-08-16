@@ -8,9 +8,13 @@ typedef struct {
     uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
     uint64_t vec_num, error_code;
     uint64_t rip, cs, rflags, rsp, ss;
-} exception_frame_t;
+} context_frame_t;
+
+typedef context_frame_t exception_frame_t;
 
 void idt_init(void);
 void exception_handler(exception_frame_t *frame);
+context_frame_t *timer_interrupt_handler(context_frame_t *frame);
+void switch_to_context_frame(context_frame_t *frame) __attribute__((noreturn));
 
 #endif /* IDT_H */

@@ -1,6 +1,9 @@
 [BITS 64]
 global isr_stub_table
+global isr_32
+global switch_to_context_frame
 extern exception_handler
+extern timer_interrupt_handler
 
 section .text
 
@@ -88,6 +91,70 @@ isr_common_stub:
     pop rbx
     pop rax
 
+    add rsp, 16
+    iretq
+
+align 16
+isr_32:
+    push qword 0          ; dummy error code
+    push qword 32         ; vector 32 (IRQ0 Timer)
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov rdi, rsp
+    call timer_interrupt_handler wrt ..plt
+    mov rsp, rax          ; switch stack pointer to target process context frame
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+
+    add rsp, 16
+    iretq
+
+align 16
+switch_to_context_frame:
+    mov rsp, rdi
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
     add rsp, 16
     iretq
 

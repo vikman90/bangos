@@ -1,5 +1,6 @@
 #include "idt.h"
 #include "drivers/uart.h"
+#include "drivers/pit.h"
 #include <stdint.h>
 
 struct idt_entry {
@@ -21,6 +22,7 @@ static struct idt_entry idt[256];
 static struct idt_ptr idtp;
 
 extern uint64_t isr_stub_table[32];
+extern void isr_32(void);
 
 static void idt_set_gate(uint8_t num, uint64_t base, uint16_t sel, uint8_t flags, uint8_t ist) {
     idt[num].offset_low  = (uint16_t)(base & 0xFFFF);
@@ -38,28 +40,27 @@ static inline uint64_t read_cr2(void) {
     return val;
 }
 
-static void pic_disable(void) {
-    __asm__ volatile ("outb %0, %1" : : "a"((uint8_t)0xFF), "Nd"((uint16_t)0x21));
-    __asm__ volatile ("outb %0, %1" : : "a"((uint8_t)0xFF), "Nd"((uint16_t)0xA1));
-}
-
 void idt_init(void) {
     idtp.limit = sizeof(idt) - 1;
     idtp.base  = (uint64_t)&idt;
 
-    pic_disable();
+    pic_remap();
+    pit_init(100);
 
     for (int i = 0; i < 32; i++) {
         uint8_t ist = (i == 8 || i == 13 || i == 14) ? 1 : 0; // Use IST1 for fault handling
         idt_set_gate((uint8_t)i, isr_stub_table[i], 0x08, 0x8E, ist);
     }
 
-    for (int i = 32; i < 256; i++) {
+    // Gate 32: Timer IRQ 0
+    idt_set_gate(32, (uint64_t)isr_32, 0x08, 0x8E, 0);
+
+    for (int i = 33; i < 256; i++) {
         idt_set_gate((uint8_t)i, isr_stub_table[7], 0x08, 0x8E, 0);
     }
 
     __asm__ volatile ("lidt %0" : : "m"(idtp));
-    kprintf("[IDT] 64-bit IDT initialized with 256 gates (PIC hardware IRQs disabled).\n");
+    kprintf("[IDT] 64-bit IDT initialized with 256 gates (Timer IRQ0 on Vector 32 enabled).\n");
 }
 
 void exception_handler(exception_frame_t *frame) {

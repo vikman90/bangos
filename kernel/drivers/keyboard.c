@@ -38,8 +38,12 @@ char keyboard_getc(void) {
     while (1) {
         int ch = keyboard_has_char();
         if (ch > 0) return (char)ch;
-        __asm__ volatile ("pause");
+        __asm__ volatile ("sti; pause; cli");
     }
+}
+
+int console_has_char(void) {
+    return uart_has_data();
 }
 
 char console_getchar(void) {
@@ -51,6 +55,6 @@ char console_getchar(void) {
         if (kbd_ch > 0) {
             return (char)kbd_ch;
         }
-        __asm__ volatile ("pause");
+        __asm__ volatile ("sti; pause; cli");
     }
 }
