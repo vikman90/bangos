@@ -58,6 +58,7 @@ The boot and execution lifecycle of BangOS follows these sequential stages:
 | **FPU/SSE Initializer**| `kernel/main.c` | Configures CR0/CR4 control registers for hardware SIMD floating-point execution. |
 | **In-Memory TarFS** | `kernel/fs/tarfs.c` | USTAR ramdisk parser for loading standalone userland binaries from memory. |
 | **ELF64 Loader** | `kernel/loader/elf.c` | Parser and mapper for 64-bit ELF executable binaries. |
-| **Process Manager** | `kernel/process/process.c` | Multi-process management, context switching, `fork()`, `execve()`, and `wait4()`. |
+| **Process & Thread Manager** | `kernel/process/process.c` | Multi-process management, preemptive Round-Robin context switching, `fork()`, `clone()`, `futex_wait()`/`futex_wake()`, `execve()`, and `wait4()`. |
+| **PIT 8254 Timer Driver** | `kernel/drivers/pit.c` | Programmable Interval Timer at 100 Hz (10 ms time slice) wired to 8259 PIC and IDT Gate 32. |
 | **Syscall Engine** | `kernel/syscall/syscall.c` | Linux x86_64 ABI system call dispatcher. |
 | **16550 UART Driver** | `kernel/drivers/uart.c` | Serial console driver over COM1 (`0x3F8`) at 38400 baud. |

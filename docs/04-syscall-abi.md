@@ -41,17 +41,20 @@ When userland executes `syscall`:
 | `12` | `SYS_BRK` | `brk_addr` | Queries or expands user process heap boundary |
 | `16` | `SYS_IOCTL` | `fd`, `cmd`, `arg` | Handles terminal attributes (`TIOCGWINSZ`, etc.) |
 | `20` | `SYS_WRITEV` | `fd`, `iov`, `iovcnt` | Writes formatted vector buffers produced by `printf()` / `vfprintf()` |
+| `24` | `SYS_SCHED_YIELD` | *none* | Yields the remaining CPU time quantum to the next ready task |
 | `35` | `SYS_NANOSLEEP` | `req`, `rem` | High-precision sleep using calibrated timestamp counter (TSC) |
 | `39` | `SYS_GETPID` | *none* | Returns current process PID |
-| `56` | `SYS_CLONE` | `flags`, `stack`, ... | Process context creation |
-| `57` | `SYS_FORK` | *none* | Creates child process context |
+| `56` | `SYS_CLONE` | `flags`, `stack`, `ptid`, `ctid`, `newtls` | Creates new execution context: processes or threads (`CLONE_VM`, `CLONE_THREAD`) |
+| `57` | `SYS_FORK` | *none* | Creates child process context with independent address space |
 | `58` | `SYS_VFORK` | *none* | Creates child process context |
 | `59` | `SYS_EXECVE` | `path`, `argv`, `envp` | Replaces current process with new ELF from TarFS ramdisk |
-| `60` | `SYS_EXIT` | `status` | Terminates process, notifies parent via `wait4`, or halts system if PID 1 |
+| `60` | `SYS_EXIT` | `status` | Terminates process/thread, notifies parent via `wait4`, or halts system if PID 1 |
 | `61` | `SYS_WAIT4` | `pid`, `status`, `opts` | Waits for child process termination and retrieves exit status code |
 | `63` | `SYS_UNAME` | `buf` | Populates `utsname` (BangOS release, architecture, hostname) |
 | `99` | `SYS_SYSINFO` | `info` | Populates `sysinfo` (total RAM, free RAM, uptime, active procs) |
 | `158` | `SYS_ARCH_PRCTL` | `code`, `addr` | Configures TLS (Thread Local Storage) by writing `MSR_FS_BASE` (`0xC0000100`) |
+| `186` | `SYS_GETTID` | *none* | Returns caller thread TID (Process ID / Thread ID) |
+| `202` | `SYS_FUTEX` | `uaddr`, `op`, `val`, ... | Fast user-space locking primitive (`FUTEX_WAIT`, `FUTEX_WAKE`) |
 | `218` | `SYS_SET_TID_ADDRESS` | `tidptr` | Returns process TID |
 | `228` | `SYS_CLOCK_GETTIME` | `clk_id`, `tp` | Returns monotonic / realtime timestamp in seconds and nanoseconds |
 | `231` | `SYS_EXIT_GROUP` | `status` | Terminates process or halts system if PID 1 |

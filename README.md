@@ -22,18 +22,21 @@ The project is designed to be highly modular and extensible, serving as a clean 
   * **FPU & SSE Support**: `%cr0` / `%cr4` configured for SIMD 64-bit floating-point math execution (`sqrt`, double precision).
 * **Linux x86_64 Syscall Interface**: Supports the native hardware `syscall` / `sysret` instruction interface (MSRs `STAR`, `LSTAR`, `SFMASK`, `EFER.SCE`).
 * **musl C System Calls Implemented**:
-  * `SYS_READ` (`0`): Console/Serial stdin input.
+    * `SYS_READ` (`0`): Console/Serial stdin input.
   * `SYS_WRITE` (`1`) / `SYS_WRITEV` (`20`): Serial stdout output and text formatting.
   * `SYS_POLL` (`7`): Non-blocking I/O polling.
   * `SYS_MMAP` (`9`) / `SYS_BRK` (`12`): Memory allocation and user heap growth.
+  * `SYS_SCHED_YIELD` (`24`): Cooperative CPU time-slice yield.
   * `SYS_NANOSLEEP` (`35`): High-precision sleep with timestamp counter (TSC).
   * `SYS_GETPID` (`39`): Process ID query.
-  * `SYS_FORK` (`57`) / `SYS_VFORK` (`58`) / `SYS_CLONE` (`56`): Process context creation.
+  * `SYS_CLONE` (`56`) / `SYS_FORK` (`57`) / `SYS_VFORK` (`58`): Process and shared memory thread creation (`CLONE_VM`).
   * `SYS_EXECVE` (`59`): Replaces process image with standalone ELF from TarFS ramdisk.
   * `SYS_WAIT4` (`61`): Waits for child process termination.
   * `SYS_UNAME` (`63`): System name, version, and architecture query (`struct utsname`).
   * `SYS_SYSINFO` (`99`): System statistics, uptime, and memory usage (`struct sysinfo`).
   * `SYS_ARCH_PRCTL` (`158`): Thread Local Storage (`FS_BASE` / `GS_BASE`).
+  * `SYS_GETTID` (`186`): Thread ID query.
+  * `SYS_FUTEX` (`202`): Fast user-space sleeping and waking synchronization primitive (`FUTEX_WAIT`, `FUTEX_WAKE`).
   * `SYS_IOCTL` (`16`): Terminal attributes (`TIOCGWINSZ`).
   * `SYS_CLOCK_GETTIME` (`228`): Monotonic and realtime timestamps with nanosecond precision.
   * `SYS_EXIT` (`60`) / `SYS_EXIT_GROUP` (`231`): Process termination, child reaping, or system halt.
@@ -42,7 +45,9 @@ The project is designed to be highly modular and extensible, serving as a clean 
   * **`/bin/calc`**: Standalone geometric calculator executable.
   * **`/bin/sysinfo`**: Standalone system hardware and OS report executable.
   * **`/bin/bench`**: Standalone CPU, FPU/SSE, memory allocation, and timer benchmark executable.
-* **16550 UART Driver**: Full serial console support over COM1 (`0x3F8`).
+  * **`/bin/tasks`**: Standalone preemptive multitasking and background computation workers demo.
+  * **`/bin/threads`**: Standalone multithreading, mutexes, counting semaphores, and futex synchronization suite.
+* **16550 UART Driver & 8254 PIT Driver**: Full serial console support over COM1 (`0x3F8`) and 100 Hz preemptive timer interrupts.
 
 ---
 
@@ -74,9 +79,11 @@ Available Standalone Applications (Multi-ELF Ramdisk):
   [1] Geometric Calculator           (execve /bin/calc)
   [2] System Information & Uname     (execve /bin/sysinfo)
   [3] CPU FPU/SSE & Timer Benchmark  (execve /bin/bench)
-  [4] Shutdown / Halt System         (exit)
+  [4] Preemptive Multitasking Tasks  (execve /bin/tasks)
+  [5] Multithreading & Mutex Sync    (execve /bin/threads)
+  [6] Shutdown / Halt System         (exit)
 
-Select an option [1-4]: 
+Select an option [1-6]: 
 ```
 
 ---
@@ -198,7 +205,8 @@ BangOS/
 - [x] ELF64 Loader & Musl Linux System Call Engine
 - [x] In-Memory TarFS Ramdisk Driver (`initrd.tar`)
 - [x] Multi-ELF Process Execution (`SYS_FORK`, `SYS_EXECVE`, `SYS_WAIT4`)
-- [ ] Preemptive Multitasking & Context Switching
+- [x] Preemptive Multitasking & Context Switching (PIT 8254 100 Hz timer)
+- [x] Multithreading, Shared Address Space (`CLONE_VM`) & Futex Synchronization
 - [ ] Virtual Memory Manager with Demand Paging & `mmap` backing
 - [ ] ATA / AHCI Storage Drive Driver & FAT32/ext2 Filesystem
 - [ ] VirtIO Network Driver & Lightweight TCP/IP Stack
