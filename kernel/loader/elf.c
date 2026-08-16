@@ -30,6 +30,7 @@ int elf_load_binary(const void *elf_data, size_t elf_size, elf_info_t *out_info)
     out_info->entry_point = ehdr->e_entry;
     out_info->min_vaddr = ~0ULL;
     out_info->max_vaddr = 0;
+    out_info->num_segments = 0;
 
     for (uint16_t i = 0; i < ehdr->e_phnum; i++) {
         const Elf64_Phdr *phdr = (const Elf64_Phdr *)(ph_table + i * ehdr->e_phentsize);
@@ -67,9 +68,16 @@ int elf_load_binary(const void *elf_data, size_t elf_size, elf_info_t *out_info)
 
             // Map segment pages into page table
             map_user_pages(page_aligned_vaddr, (uint64_t)phys_pages, num_pages);
+
+            if (out_info->num_segments < MAX_ELF_SEGMENTS) {
+                out_info->segments[out_info->num_segments].virt_addr = page_aligned_vaddr;
+                out_info->segments[out_info->num_segments].phys_addr = (uint64_t)phys_pages;
+                out_info->segments[out_info->num_segments].num_pages = num_pages;
+                out_info->num_segments++;
+            }
         }
     }
 
-    kprintf("[ELF] All segments loaded successfully.\n");
+    kprintf("[ELF] All segments loaded successfully (%d segments recorded).\n", (int)out_info->num_segments);
     return 0;
 }

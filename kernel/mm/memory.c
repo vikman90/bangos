@@ -16,6 +16,12 @@ static inline void invlpg(uint64_t virt) {
     __asm__ volatile ("invlpg (%0)" : : "r"(virt) : "memory");
 }
 
+void mm_flush_tlb(void) {
+    if (kernel_pml4) {
+        write_cr3((uint64_t)kernel_pml4);
+    }
+}
+
 void *alloc_pages(size_t count) {
     if (count == 0) return NULL;
 
