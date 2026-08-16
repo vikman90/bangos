@@ -12,12 +12,6 @@ static uint64_t kernel_boot_tsc = 0;
 
 #define TSC_FREQ_HZ 1000000000ULL // 1.0 GHz baseline TSC frequency for calibration
 
-static inline void write_msr(uint32_t msr, uint64_t val) {
-    uint32_t low = val & 0xFFFFFFFF;
-    uint32_t high = val >> 32;
-    __asm__ volatile ("wrmsr" : : "c"(msr), "a"(low), "d"(high));
-}
-
 static inline uint64_t rdtsc(void) {
     uint32_t lo, hi;
     __asm__ volatile ("rdtsc" : "=a"(lo), "=d"(hi));
@@ -25,9 +19,7 @@ static inline uint64_t rdtsc(void) {
 }
 
 int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
-                   uint64_t arg4, uint64_t arg5, uint64_t arg6) {
-    (void)arg4; (void)arg5; (void)arg6;
-
+                   uint64_t arg4, context_frame_t *frame) {
     if (kernel_boot_tsc == 0) {
         kernel_boot_tsc = rdtsc();
     }
@@ -113,6 +105,10 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             uint64_t addr = arg2;
 
             if (code == ARCH_SET_FS) {
+                process_t *proc = process_get_current();
+                if (proc) {
+                    proc->fs_base = addr;
+                }
                 write_msr(0xC0000100, addr); // Set MSR_FS_BASE
                 return 0;
             } else if (code == ARCH_SET_GS) {
@@ -162,17 +158,33 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             return -29; // -ESPIPE
         }
 
-        case SYS_GETPID:
+        case SYS_SCHED_YIELD: {
+            schedule_yield();
+            return 0;
+        }
+
+        case SYS_GETPID: {
+            process_t *proc = process_get_current();
+            return proc ? (int64_t)proc->tgid : 1;
+        }
+
         case SYS_GETTID: {
             process_t *proc = process_get_current();
             return proc ? (int64_t)proc->pid : 1;
         }
 
-        case SYS_CLONE:
         case SYS_FORK:
         case SYS_VFORK: {
-            process_fork(0, 0, 0);
-            return 0; // Return 0 to execute child branch
+            return (int64_t)process_fork(frame);
+        }
+
+        case SYS_CLONE: {
+            unsigned long flags = (unsigned long)arg1;
+            void *child_stack = (void *)arg2;
+            int *ptid = (int *)arg3;
+            int *ctid = (int *)arg4;
+            void *newtls = (void *)frame->r8; // 5th syscall argument in user registers
+            return (int64_t)process_clone(flags, child_stack, ptid, ctid, newtls, frame);
         }
 
         case SYS_EXECVE: {
@@ -186,6 +198,18 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             int pid = (int)arg1;
             int *status = (int *)arg2;
             return (int64_t)process_wait4(pid, status);
+        }
+
+        case SYS_FUTEX: {
+            uint32_t *uaddr = (uint32_t *)arg1;
+            int op = (int)arg2 & ~128; // Mask out FUTEX_PRIVATE_FLAG
+            uint32_t val = (uint32_t)arg3;
+            if (op == FUTEX_WAIT) {
+                return (int64_t)futex_wait(uaddr, val);
+            } else if (op == FUTEX_WAKE) {
+                return (int64_t)futex_wake(uaddr, (int)val);
+            }
+            return -22; // -EINVAL
         }
 
         case SYS_UNAME: {
@@ -238,11 +262,24 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
                 return -22; // -EINVAL
             }
 
-            uint64_t target_cycles = ((uint64_t)req->tv_sec * TSC_FREQ_HZ) +
-                                     ((uint64_t)req->tv_nsec * TSC_FREQ_HZ / 1000000000ULL);
-            uint64_t start_tsc = rdtsc();
-            while ((rdtsc() - start_tsc) < target_cycles) {
-                __asm__ volatile ("pause");
+            uint64_t total_ticks = ((uint64_t)req->tv_sec * 100) +
+                                   (((uint64_t)req->tv_nsec + 9999999ULL) / 10000000ULL);
+            if (total_ticks == 0) total_ticks = 1;
+
+            process_t *proc = process_get_current();
+            if (proc) {
+                proc->sleep_ticks_remaining = total_ticks;
+                proc->state = PROCESS_STATE_SLEEPING;
+                while (proc->sleep_ticks_remaining > 0) {
+                    __asm__ volatile ("sti; hlt");
+                }
+            } else {
+                uint64_t target_cycles = ((uint64_t)req->tv_sec * TSC_FREQ_HZ) +
+                                         ((uint64_t)req->tv_nsec * TSC_FREQ_HZ / 1000000000ULL);
+                uint64_t start_tsc = rdtsc();
+                while ((rdtsc() - start_tsc) < target_cycles) {
+                    __asm__ volatile ("pause");
+                }
             }
 
             if (rem) {
@@ -253,12 +290,19 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
         }
 
         case SYS_SET_TID_ADDRESS: {
+            process_t *proc = process_get_current();
+            if (proc) {
+                proc->clear_child_tid = (int *)arg1;
+                return (int64_t)proc->pid;
+            }
             return 1;
         }
 
         case SYS_EXIT:
         case SYS_EXIT_GROUP: {
             int code = (int)arg1;
+            kprintf("[Syscall] Process PID=%d called exit(%d)\n",
+                    process_get_current() ? process_get_current()->pid : -1, code);
             process_exit(code);
             return 0;
         }

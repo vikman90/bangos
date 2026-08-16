@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "arch/x86_64/idt.h"
 
 #define SYS_READ            0
 #define SYS_WRITE           1
@@ -16,6 +17,7 @@
 #define SYS_RT_SIGPROCMASK  14
 #define SYS_IOCTL           16
 #define SYS_WRITEV          20
+#define SYS_SCHED_YIELD     24
 #define SYS_NANOSLEEP       35
 #define SYS_GETPID          39
 #define SYS_CLONE           56
@@ -28,9 +30,27 @@
 #define SYS_SYSINFO         99
 #define SYS_ARCH_PRCTL      158
 #define SYS_GETTID          186
+#define SYS_FUTEX           202
 #define SYS_SET_TID_ADDRESS 218
 #define SYS_CLOCK_GETTIME   228
 #define SYS_EXIT_GROUP      231
+
+/* Clone Flags */
+#define CLONE_VM            0x00000100
+#define CLONE_FS            0x00000200
+#define CLONE_FILES         0x00000400
+#define CLONE_SIGHAND       0x00000800
+#define CLONE_THREAD        0x00010000
+#define CLONE_SETTLS        0x00080000
+#define CLONE_PARENT_SETTID 0x00100000
+#define CLONE_CHILD_CLEARTID 0x00200000
+#define CLONE_CHILD_SETTID  0x01000000
+
+/* Futex Operations */
+#define FUTEX_WAIT          0
+#define FUTEX_WAKE          1
+#define FUTEX_PRIVATE_FLAG  128
+#define FUTEX_CLOCK_REALTIME 256
 
 #define ARCH_SET_GS 0x1001
 #define ARCH_SET_FS 0x1002
@@ -85,8 +105,8 @@ struct timespec {
     int64_t tv_nsec;
 };
 
-void syscall_init_msrs(void);
+void    syscall_init_msrs(void);
 int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3,
-                   uint64_t arg4, uint64_t arg5, uint64_t arg6);
+                   uint64_t arg4, context_frame_t *frame);
 
 #endif /* SYSCALL_H */
