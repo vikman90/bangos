@@ -3,8 +3,8 @@ LD = ld
 OBJCOPY = objcopy
 
 CFLAGS = -Iinclude -Ikernel -I/usr/include/efi -I/usr/include/efi/x86_64 \
-         -DEFI_FUNCTION_WRAPPER -fno-stack-protector -fpic -fshort-wchar \
-         -mno-red-zone -Wall -Wextra -O2 -g
+         -DEFI_FUNCTION_WRAPPER -fno-stack-protector -fpic -fvisibility=hidden -fshort-wchar \
+         -mno-red-zone -fno-builtin -fno-tree-loop-distribute-patterns -Wall -Wextra -O2 -g
 
 LDFLAGS = -shared -Bsymbolic -L/usr/lib /usr/lib/crt0-efi-x86_64.o \
           -T /usr/lib/elf_x86_64_efi.lds -lgnuefi -lefi
