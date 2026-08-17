@@ -118,11 +118,14 @@ Subsystem modifications require corresponding updates to project documentation:
 | Subsystem Change | Target Documentation Files |
 | :--- | :--- |
 | System Call Addition / Modification | `docs/04-syscall-abi.md`, `README.md`, `include/kernel.h`, `kernel/syscall/syscall.h` |
-| Hardware Driver Addition | `docs/00-architecture.md`, `docs/07-extending-bangos.md`, `README.md` |
-| Userland Application Addition | `docs/07-extending-bangos.md`, `README.md`, `userland/Makefile` |
+| Hardware Driver Addition | `docs/00-architecture.md`, `docs/08-hardware-drivers.md`, `docs/11-extending-bangos.md`, `README.md` |
+| Process / Multitasking / Scheduler | `docs/05-process-multitasking-sched.md`, `README.md`, `kernel/process/process.h` |
+| TarFS Ramdisk / ELF Loader | `docs/06-elf-loader-tarfs.md`, `README.md`, `kernel/loader/elf.h` |
+| Userland Application Addition | `docs/09-userland-environment.md`, `docs/11-extending-bangos.md`, `README.md`, `userland/Makefile` |
 | Memory Management / Paging | `docs/03-paging-and-memory.md` |
 | Bootloader / UEFI Firmware | `docs/01-uefi-bootloading.md` |
-| Test Harness / CI Pipeline | `docs/06-testing-and-qemu.md`, `.github/workflows/ci.yml` |
+| FPU / SSE SIMD Support | `docs/07-fpu-sse.md` |
+| Test Harness / CI Pipeline | `docs/10-testing-and-qemu.md`, `.github/workflows/ci.yml` |
 
 ---
 
