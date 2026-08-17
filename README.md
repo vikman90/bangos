@@ -5,64 +5,58 @@
 [![Firmware: UEFI](https://img.shields.io/badge/Firmware-UEFI-green.svg)]()
 [![C Runtime: musl](https://img.shields.io/badge/C--Runtime-musl-informational.svg)]()
 
-**BangOS** is a lightweight, educational 64-bit bare-metal operating system kernel designed to run standard Linux binaries (compiled with `musl` C runtime) directly on x86_64 UEFI hardware without requiring the Linux kernel.
+**BangOS** is an educational, lightweight 64-bit bare-metal operating system microkernel designed to run standard Linux binaries (compiled statically with the `musl` standard C library) directly on x86_64 UEFI hardware without requiring the Linux kernel.
 
-The project is designed to be highly modular and extensible, serving as a clean foundation for learning low-level OS development, UEFI bootloading, x86_64 CPU initialization, paging, FPU/SSE extensions, and the Linux System Call Interface (ABI).
+The repository serves as a comprehensive, clean foundation for learning low-level OS development, 64-bit UEFI bootloading, x86_64 CPU initialization (GDT, TSS, IDT), 4-level paging with Demand Paging, FPU/SSE SIMD extensions, preemptive multitasking, and the Linux System Call ABI.
 
 ---
 
-## 🌟 Key Features
+## 🌟 Core Subsystems & Key Features
 
-* **64-bit UEFI Bootloader**: Loads directly via OVMF UEFI firmware, sets up graphics/serial console, reads the `initrd.tar` ramdisk from FAT32 boot partitions, and transitions to kernel mode.
-* **In-Memory TarFS Ramdisk**: Parses standard USTAR archives containing standalone ELF binaries directly in physical RAM.
-* **x86_64 Core Subsystems**:
-  * **GDT & TSS**: Segment descriptors configured for kernel space (`0x08`, `0x10`) and user space (`0x1B`, `0x23`).
-  * **IDT & Exception Handling**: Interrupt table with 256 gates and dedicated Interrupt Stack Table (IST) for exception safety.
-  * **Paging & Memory Management**: 4-level Page Tables (PML4, PDPT, PD, PT) with 4GB identity mapping and dynamic user page mapping.
-  * **FPU & SSE Support**: `%cr0` / `%cr4` configured for SIMD 64-bit floating-point math execution (`sqrt`, double precision).
-* **Linux x86_64 Syscall Interface**: Supports the native hardware `syscall` / `sysret` instruction interface (MSRs `STAR`, `LSTAR`, `SFMASK`, `EFER.SCE`).
-* **musl C System Calls Implemented**:
-    * `SYS_READ` (`0`): Console/Serial stdin input.
-  * `SYS_WRITE` (`1`) / `SYS_WRITEV` (`20`): Serial stdout output and text formatting.
-  * `SYS_POLL` (`7`): Non-blocking I/O polling.
-  * `SYS_MMAP` (`9`) / `SYS_BRK` (`12`): Memory allocation and user heap growth.
-  * `SYS_SCHED_YIELD` (`24`): Cooperative CPU time-slice yield.
-  * `SYS_NANOSLEEP` (`35`): High-precision sleep with timestamp counter (TSC).
-  * `SYS_GETPID` (`39`): Process ID query.
-  * `SYS_CLONE` (`56`) / `SYS_FORK` (`57`) / `SYS_VFORK` (`58`): Process and shared memory thread creation (`CLONE_VM`).
-  * `SYS_EXECVE` (`59`): Replaces process image with standalone ELF from TarFS ramdisk.
-  * `SYS_WAIT4` (`61`): Waits for child process termination.
-  * `SYS_UNAME` (`63`): System name, version, and architecture query (`struct utsname`).
-  * `SYS_SYSINFO` (`99`): System statistics, uptime, and memory usage (`struct sysinfo`).
-  * `SYS_ARCH_PRCTL` (`158`): Thread Local Storage (`FS_BASE` / `GS_BASE`).
-  * `SYS_GETTID` (`186`): Thread ID query.
-  * `SYS_FUTEX` (`202`): Fast user-space sleeping and waking synchronization primitive (`FUTEX_WAIT`, `FUTEX_WAKE`).
-  * `SYS_IOCTL` (`16`): Terminal attributes (`TIOCGWINSZ`).
-  * `SYS_CLOCK_GETTIME` (`228`): Monotonic and realtime timestamps with nanosecond precision.
-  * `SYS_EXIT` (`60`) / `SYS_EXIT_GROUP` (`231`): Process termination, child reaping, or system halt.
+* **64-bit UEFI Bootloader (`BOOTX64.EFI`)**: Loads directly via OVMF UEFI firmware, sets up graphics/serial console, reads `initrd.tar` from FAT32 partitions, queries memory maps, and executes `ExitBootServices()`.
+* **In-Memory TarFS Ramdisk**: Parses standard USTAR archives containing standalone 64-bit ELF binaries directly in physical RAM.
+* **x86_64 Core Microkernel**:
+  * **GDT & TSS**: Segment descriptors configured for Kernel space (`0x08`, `0x10`) and User space (`0x1B`, `0x23`) with dynamic `RSP0` stack switching.
+  * **IDT & Exception Handling**: 256 interrupt gates with dedicated Interrupt Stack Table (`IST1`) for fault safety (`#DF`, `#GP`).
+  * **4-Level Paging & VMM**: PML4, PDPT, PD, PT hierarchy with 4 GB identity mapping, physical frame bitmap allocator, and per-process Virtual Memory Areas (VMAs).
+  * **Demand Paging**: Zero-fill on-demand page allocation handling Page Fault exceptions (`#PF`, Vector 14) for dynamic `mmap()`.
+  * **FPU & SSE SIMD Extensions**: `%cr0` / `%cr4` configured for 64-bit hardware floating-point execution (`sqrt`, double precision math, `fxsave64`/`fxrstor64` context switching).
+* **Preemptive Multitasking & Multithreading**:
+  * **8254 PIT Timer Driver**: Generates 100 Hz timer interrupts (10 ms time quantum) for Round-Robin process scheduling.
+  * **Process Lifecycle**: `SYS_FORK`, `SYS_CLONE` (with `CLONE_VM`), `SYS_EXECVE`, `SYS_WAIT4`, and `SYS_EXIT`.
+  * **Fast Userspace Locking**: `SYS_FUTEX` supporting `FUTEX_WAIT` and `FUTEX_WAKE`.
+* **Linux x86_64 Syscall ABI**: Hardware `syscall` / `sysret` MSR interface (`STAR`, `LSTAR`, `SFMASK`, `EFER.SCE`) implementing over 20 POSIX syscalls (`read`, `write`, `writev`, `mmap`, `mprotect`, `munmap`, `brk`, `poll`, `ioctl`, `nanosleep`, `sysinfo`, `uname`, `arch_prctl`, etc.).
+* **Two-Tier Test Verification**:
+  * **Ring 0 `ktest`**: In-kernel unit tests verifying memory allocators, page tables, TarFS, and scheduler.
+  * **Ring 3 POSIX Specs**: Standalone userland test suites validating syscall safety, demand paging, and process lifecycles.
 * **Standalone Multi-ELF Userland**:
-  * **`/bin/init` (PID 1)**: Interactive process launcher using `fork()`, `execve()`, and `waitpid()`.
-  * **`/bin/calc`**: Standalone geometric calculator executable.
-  * **`/bin/sysinfo`**: Standalone system hardware and OS report executable.
-  * **`/bin/bench`**: Standalone CPU, FPU/SSE, memory allocation, and timer benchmark executable.
-  * **`/bin/tasks`**: Standalone preemptive multitasking and background computation workers demo.
-  * **`/bin/threads`**: Standalone multithreading, mutexes, counting semaphores, and futex synchronization suite.
-* **16550 UART Driver & 8254 PIT Driver**: Full serial console support over COM1 (`0x3F8`) and 100 Hz preemptive timer interrupts.
+  * **`/bin/init` (PID 1)**: Interactive process supervisor and launcher.
+  * **`/bin/calc`**: Standalone geometric calculator.
+  * **`/bin/sysinfo`**: Standalone hardware and operating system report.
+  * **`/bin/bench`**: Multi-phase CPU, FPU/SSE, dynamic memory, and demand paging benchmark suite.
+  * **`/bin/tasks`**: Preemptive multitasking and concurrent computation workers demo.
+  * **`/bin/threads`**: Multithreading, mutexes, counting semaphores, and futex synchronization suite.
 
 ---
 
-## 📚 Documentation Guides
+## 📚 Technical Documentation Syllabus
 
-Detailed technical documentation for every subsystem is available in the [`docs/`](docs/) directory:
+Comprehensive documentation explaining the theoretical concepts, hardware specifications, and code implementations is available in the [`docs/`](docs/) directory:
 
-1. [**00 - Architecture Overview**](docs/00-architecture.md): Overall system design, component breakdown, and boot control flow.
-2. [**01 - UEFI Bootloading**](docs/01-uefi-bootloading.md): 64-bit UEFI bootloader (`BOOTX64.EFI`), memory map retrieval, and ExitBootServices transition.
-3. [**02 - GDT, TSS & IDT**](docs/02-gdt-idt-tss.md): x86_64 segmentation, segment descriptors, TSS, IST exception stacks, and CPU fault handlers.
-4. [**03 - Paging & Memory Management**](docs/03-paging-and-memory.md): 4-level page table structure (PML4, PDPT, PD, PT), 4GB identity mapping, frame allocation, and TLB invalidation.
-5. [**04 - System Call ABI**](docs/04-syscall-abi.md): MSR configuration (`STAR`, `LSTAR`, `SFMASK`, `EFER.SCE`), System V AMD64 ABI, and musl syscall handling table.
-6. [**05 - FPU & SSE Extensions**](docs/05-fpu-sse.md): Hardware CR0/CR4 configuration enabling 64-bit SIMD floating-point math (`sqrt`, double precision).
-7. [**06 - Testing & QEMU Automation**](docs/06-testing-and-qemu.md): QEMU TCP serial socket configuration, Python test runner, and CI test harness.
-8. [**07 - Extending BangOS**](docs/07-extending-bangos.md): Step-by-step developer guide to adding new system calls, hardware drivers, and user applications.
+| Chapter | Title | Key Topics Covered |
+| :--- | :--- | :--- |
+| [**00 - Architecture Overview**](docs/00-architecture.md) | System Architecture & Design Philosophy | Microkernel design, boot flow, Ring 0 vs Ring 3, memory map, subsystem interactions. |
+| [**01 - UEFI Bootloading**](docs/01-uefi-bootloading.md) | 64-bit UEFI Bootloading & Firmware Handoff | GNU-EFI, FAT32 ESP traversal, `initrd.tar` loading, memory map acquisition, `ExitBootServices`. |
+| [**02 - GDT, TSS & IDT**](docs/02-gdt-idt-tss.md) | Segmentation, GDT, TSS & Exception Handling | Long Mode segmentation, segment selectors, TSS `rsp0`/`ist1`, 256-gate IDT, 8259 PIC remapping. |
+| [**03 - Paging & Memory Management**](docs/03-paging-and-memory.md) | 4-Level Paging, Allocators & Demand Paging | PML4/PDPT/PD/PT translation, 4GB identity mapping, frame bitmap allocator, VMAs, Demand Paging `#PF`. |
+| [**04 - System Call ABI**](docs/04-syscall-abi.md) | System Call Subsystem (Linux x86_64 ABI) | Hardware MSRs (`STAR`, `LSTAR`, `SFMASK`), `syscall_entry.s` trampoline, exhaustive syscall reference table. |
+| [**05 - Process Management & Scheduling**](docs/05-process-multitasking-sched.md) | Process Management, Preemptive Sched & Futex | PCB (`process_t`), `fork()`, `clone()`, musl user stack, 100 Hz PIT timer, Round-Robin scheduler, `futex`. |
+| [**06 - In-Memory TarFS & ELF64 Loader**](docs/06-elf-loader-tarfs.md) | In-Memory TarFS Ramdisk & ELF64 Loader | USTAR format, octal parsing, `Elf64_Ehdr`, `Elf64_Phdr`, `PT_LOAD` mapping, BSS zeroing. |
+| [**07 - FPU & SSE Extensions**](docs/07-fpu-sse.md) | FPU & SIMD/SSE Floating-Point Support | CR0/CR4 control registers, `fninit`, `fxsave64`/`fxrstor64` context switching, 16-byte stack alignment. |
+| [**08 - Hardware Device Drivers**](docs/08-hardware-drivers.md) | Hardware Device Drivers & Low-Level I/O | 16550 UART serial COM1 driver, 8254 PIT timer, PS/2 keyboard controller, QEMU debug/poweroff ports. |
+| [**09 - Userland Environment**](docs/09-userland-environment.md) | Userland Runtime, Applications & Concurrency | Static `musl-gcc`, `/bin/init` supervisor, standalone ELFs, `tui.h` ANSI library, `synch.h` concurrency. |
+| [**10 - Specification Testing & QEMU**](docs/10-testing-and-qemu.md) | Specification-Driven Testing & QEMU Harness | Ring 0 `ktest` unit tests, Ring 3 POSIX specification suites, headless QEMU TCP serial test runner. |
+| [**11 - Extending BangOS**](docs/11-extending-bangos.md) | Extending BangOS Developer Guide | Step-by-step developer tutorial for adding new syscalls, drivers, userland tools, and test suites. |
 
 ---
 
@@ -112,15 +106,13 @@ sudo apt-get install -y \
 ## 🚀 Building and Running
 
 ### 1. Build the OS & Bootloader
-
-To compile the user applications, build the `initrd.tar` ramdisk, bootloader, kernel, and create the FAT ESP image:
+Compile userland binaries, assemble `initrd.tar`, compile the EFI kernel binary, and generate the FAT32 boot filesystem at `build/esp/`:
 
 ```bash
 make esp
 ```
 
 ### 2. Run under QEMU
-
 Launch BangOS in QEMU using OVMF UEFI firmware:
 
 ```bash
@@ -128,25 +120,23 @@ make run-qemu
 ```
 
 ### 3. Automated Test Suite
-
-Run the integration test suite that spawns QEMU, passes inputs over a TCP serial socket, and verifies multi-process execution:
+Execute the headless integration test harness with TCP socket serial communication:
 
 ```bash
 make test
 ```
 
-### 4. Docker / macOS Workflow (Apple Silicon M-Series & Cross-Compile)
-
-For building on macOS or environments without bare-metal Linux toolchains:
+### 4. Docker / macOS Cross-Compilation
+For building and testing in isolated containers or on macOS:
 
 ```bash
-# Build OS artifacts inside Docker container
+# Build OS artifacts inside Docker
 make docker-build
 
 # Run automated integration tests inside Docker
 make docker-test
 
-# Open interactive bash inside the build container
+# Open interactive bash in the build container
 make docker-shell
 ```
 
@@ -154,64 +144,66 @@ make docker-shell
 
 ## 📁 Repository Structure
 
-```
+```text
 BangOS/
 ├── Makefile                     # Root build system
 ├── LICENSE                      # MIT License
-├── README.md                    # Project documentation
+├── README.md                    # Project overview and index
+├── AGENTS.md                    # AI agent guidelines & engineering standards
 ├── boot/                        # 64-bit UEFI Bootloader
-│   └── main.c
-├── docs/                        # Subsystem documentation guides
+│   └── main.c                   # Bootloader entrypoint & firmware handoff
+├── docs/                        # Subsystem technical documentation
 │   ├── 00-architecture.md
 │   ├── 01-uefi-bootloading.md
 │   ├── 02-gdt-idt-tss.md
 │   ├── 03-paging-and-memory.md
 │   ├── 04-syscall-abi.md
-│   ├── 05-fpu-sse.md
-│   ├── 06-testing-and-qemu.md
-│   └── 07-extending-bangos.md
-├── include/                     # Kernel headers
-│   ├── kernel.h
+│   ├── 05-process-multitasking-sched.md
+│   ├── 06-elf-loader-tarfs.md
+│   ├── 07-fpu-sse.md
+│   ├── 08-hardware-drivers.md
+│   ├── 09-userland-environment.md
+│   ├── 10-testing-and-qemu.md
+│   └── 11-extending-bangos.md
+├── include/                     # Kernel header definitions
+│   ├── kernel.h                 # Boot structures and MSR macros
 │   └── uefi.h
-├── kernel/                      # 64-bit OS Kernel
-│   ├── main.c
-│   ├── arch/x86_64/             # GDT, IDT, Syscall assembly
-│   ├── drivers/                 # 16550 UART serial & Keyboard drivers
+├── kernel/                      # 64-bit OS Microkernel
+│   ├── main.c                   # Kernel main orchestrator & FPU init
+│   ├── arch/x86_64/             # GDT, TSS, IDT, and Syscall assembly
+│   ├── drivers/                 # 16550 UART, 8254 PIT, 8259 PIC, PS/2, QEMU
 │   ├── fs/                      # In-Memory TarFS ramdisk driver
+│   ├── lib/                     # Freestanding kstring library
 │   ├── loader/                  # ELF64 binary loader
-│   ├── mm/                      # Physical frame allocator & 64-bit Paging
-│   ├── process/                 # Multi-process manager (fork, execve, wait4)
-│   └── syscall/                 # Linux x86_64 syscall handlers
+│   ├── mm/                      # PMM frame allocator, Paging & VMM
+│   ├── process/                 # Process table, fork, clone, scheduler, futex
+│   ├── syscall/                 # Linux x86_64 syscall dispatcher
+│   └── tests/                   # Ring 0 in-kernel unit test suite (ktest)
 ├── scripts/
-│   ├── run_qemu_test.sh         # Shell runner wrapper
-│   └── test_runner.py           # Automated test runner with socket I/O
-└── userland/                    # Standalone C Userland applications & initrd
-    ├── Makefile
-    ├── include/
-    │   └── tui.h
-    └── src/
-        ├── init.c               # Standalone PID 1 process launcher
-        ├── calc.c               # Standalone geometric calculator binary
-        ├── sysinfo.c            # Standalone system info & hardware report binary
-        ├── bench.c              # Standalone CPU & memory benchmark binary
-        └── tui.c                # Shared terminal UI library
+│   ├── run_qemu_test.sh         # Test execution shell wrapper
+│   └── test_runner.py           # Automated TCP socket QEMU test harness
+└── userland/                    # Standalone C Userland & initrd packaging
+    ├── Makefile                 # Userland compilation & USTAR tar rules
+    ├── include/                 # Userland headers (tui.h, synch.h)
+    └── src/                     # Standalone applications & POSIX test suites
 ```
 
 ---
 
-## 🗺️ Roadmap & Future Enhancements
+## 🗺️ Roadmap & Subsystem Status
 
-- [x] 64-bit UEFI Bootloader
-- [x] x86_64 GDT, TSS, IDT, Paging (CR3), FPU/SSE support
-- [x] ELF64 Loader & Musl Linux System Call Engine
-- [x] In-Memory TarFS Ramdisk Driver (`initrd.tar`)
-- [x] Multi-ELF Process Execution (`SYS_FORK`, `SYS_EXECVE`, `SYS_WAIT4`)
-- [x] Preemptive Multitasking & Context Switching (PIT 8254 100 Hz timer)
-- [x] Multithreading, Shared Address Space (`CLONE_VM`) & Futex Synchronization
-- [x] Virtual Memory Manager with Demand Paging & `mmap` backing
+- [x] 64-bit UEFI Bootloader with memory map parsing & `ExitBootServices`
+- [x] x86_64 GDT, TSS (`rsp0`, `ist1`), IDT (256 gates), FPU/SSE SIMD support
+- [x] 4-Level Paging (CR3) with 4GB Identity Mapping & 4KB Bitmap Frame Allocator
+- [x] Virtual Memory Area (VMA) Manager & On-Demand Paging on `#PF` (Vector 14)
+- [x] In-Memory TarFS Ramdisk Driver (`initrd.tar`) & ELF64 Program Header Loader
+- [x] Multi-Process Lifecycle (`SYS_FORK`, `SYS_EXECVE`, `SYS_WAIT4`, `SYS_EXIT`)
+- [x] Preemptive Multitasking & Context Switching (8254 PIT 100 Hz / 10 ms time slice)
+- [x] Multithreading (`CLONE_VM`), Thread Local Storage (`FS_BASE`), and `SYS_FUTEX`
+- [x] Standalone Multi-ELF Userland Suite & POSIX Specification Test Harness
+- [x] Two-Tier Automated Verification Architecture (Ring 0 `ktest` + Ring 3 POSIX)
 - [ ] ATA / AHCI Storage Drive Driver & FAT32/ext2 Filesystem
 - [ ] VirtIO Network Driver & Lightweight TCP/IP Stack
-
 
 ---
 
