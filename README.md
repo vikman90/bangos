@@ -71,7 +71,7 @@ Detailed technical documentation for every subsystem is available in the [`docs/
 ```text
 ======================================================================
         BangOS (x86_64) - Bare Metal Kernel v0.2.0        
-     PID: 1 (init) | RAM: 128 MB Total (127 MB Free) | Uptime: 0 s
+     PID: 1 (init) | RAM: 128 MB Total (126 MB Free) | Uptime: 0 s
 ======================================================================
 
 Available Standalone Applications (Multi-ELF Ramdisk):
@@ -81,9 +81,10 @@ Available Standalone Applications (Multi-ELF Ramdisk):
   [3] CPU FPU/SSE & Timer Benchmark  (execve /bin/bench)
   [4] Preemptive Multitasking Tasks  (execve /bin/tasks)
   [5] Multithreading & Mutex Sync    (execve /bin/threads)
-  [6] Shutdown / Halt System         (exit)
+  [6] Run Specification Test Suites  (execve /bin/test_*)
+  [7] Shutdown / Halt System         (exit)
 
-Select an option [1-6]: 
+Select an option [1-7]: 
 ```
 
 ---
