@@ -9,3 +9,5 @@ app/hipotenusa
 app/hipotenusa.s
 app/hipotenusa.o
 *.log
+site/
+.venv/

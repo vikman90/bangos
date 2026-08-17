@@ -4,6 +4,7 @@
 [![Architecture: x86_64](https://img.shields.io/badge/Architecture-x86__64-orange.svg)]()
 [![Firmware: UEFI](https://img.shields.io/badge/Firmware-UEFI-green.svg)]()
 [![C Runtime: musl](https://img.shields.io/badge/C--Runtime-musl-informational.svg)]()
+[![Documentation](https://img.shields.io/badge/Documentation-GitHub_Pages-brightgreen.svg)](https://vikman90.github.io/bangos/)
 
 **BangOS** is an educational, lightweight 64-bit bare-metal operating system microkernel designed to run standard Linux binaries (compiled statically with the `musl` standard C library) directly on x86_64 UEFI hardware without requiring the Linux kernel.
 
@@ -40,6 +41,8 @@ The repository serves as a comprehensive, clean foundation for learning low-leve
 ---
 
 ## 📚 Technical Documentation Syllabus
+
+The interactive documentation website is published online at **[https://vikman90.github.io/bangos/](https://vikman90.github.io/bangos/)**.
 
 Comprehensive documentation explaining the theoretical concepts, hardware specifications, and code implementations is available in the [`docs/`](docs/) directory:
 

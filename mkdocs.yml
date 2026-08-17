@@ -1,0 +1,69 @@
+site_name: BangOS Documentation
+site_description: Educational 64-bit bare-metal operating system microkernel running standard Linux musl binaries on x86_64 UEFI hardware.
+site_author: BangOS Team
+repo_name: vikman90/bangos
+repo_url: https://github.com/vikman90/bangos
+
+theme:
+  name: material
+  language: en
+  palette:
+    # Light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - def_list
+
+nav:
+  - "Overview": "index.md"
+  - "Architecture": "00-architecture.md"
+  - "UEFI Bootloading": "01-uefi-bootloading.md"
+  - "GDT, TSS & IDT": "02-gdt-idt-tss.md"
+  - "Paging & Memory": "03-paging-and-memory.md"
+  - "Syscall ABI": "04-syscall-abi.md"
+  - "Process & Scheduler": "05-process-multitasking-sched.md"
+  - "TarFS & ELF Loader": "06-elf-loader-tarfs.md"
+  - "FPU & SSE": "07-fpu-sse.md"
+  - "Hardware Drivers": "08-hardware-drivers.md"
+  - "Userland Runtime": "09-userland-environment.md"
+  - "Testing & QEMU": "10-testing-and-qemu.md"
+  - "Extending BangOS": "11-extending-bangos.md"
