@@ -30,7 +30,9 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             char *buf = (char *)arg2;
             size_t count = (size_t)arg3;
 
-            if (fd != 0 || count == 0 || !buf) return -1;
+            if (fd < 0 || (fd != 0 && fd != 1 && fd != 2)) return -9; // -EBADF
+            if (!buf) return -14; // -EFAULT
+            if (count == 0) return 0;
 
             size_t bytes_read = 0;
             while (bytes_read < count) {
@@ -47,13 +49,14 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             const char *buf = (const char *)arg2;
             size_t count = (size_t)arg3;
 
-            if ((fd == 1 || fd == 2) && buf) {
-                for (size_t i = 0; i < count; i++) {
-                    uart_putc(buf[i]);
-                }
-                return (int64_t)count;
+            if (fd < 0 || (fd != 1 && fd != 2)) return -9; // -EBADF
+            if (!buf) return -14; // -EFAULT
+            if (count == 0) return 0;
+
+            for (size_t i = 0; i < count; i++) {
+                uart_putc(buf[i]);
             }
-            return -1;
+            return (int64_t)count;
         }
 
         case SYS_WRITEV: {
@@ -61,20 +64,22 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             const struct iovec *iov = (const struct iovec *)arg2;
             int iovcnt = (int)arg3;
 
-            if ((fd == 1 || fd == 2) && iov && iovcnt > 0) {
-                int64_t total_written = 0;
-                for (int i = 0; i < iovcnt; i++) {
-                    if (iov[i].iov_base && iov[i].iov_len > 0) {
-                        const char *p = (const char *)iov[i].iov_base;
-                        for (size_t j = 0; j < iov[i].iov_len; j++) {
-                            uart_putc(p[j]);
-                        }
-                        total_written += iov[i].iov_len;
+            if (fd < 0 || (fd != 1 && fd != 2)) return -9; // -EBADF
+            if (!iov) return -14; // -EFAULT
+            if (iovcnt < 0) return -22; // -EINVAL
+            if (iovcnt == 0) return 0;
+
+            int64_t total_written = 0;
+            for (int i = 0; i < iovcnt; i++) {
+                if (iov[i].iov_base && iov[i].iov_len > 0) {
+                    const char *p = (const char *)iov[i].iov_base;
+                    for (size_t j = 0; j < iov[i].iov_len; j++) {
+                        uart_putc(p[j]);
                     }
+                    total_written += iov[i].iov_len;
                 }
-                return total_written;
             }
-            return -1;
+            return total_written;
         }
 
         case SYS_POLL: {
