@@ -17,6 +17,7 @@
 void     pic_remap(void);
 void     pic_send_eoi(uint8_t irq);
 void     pit_init(uint32_t frequency_hz);
+void     pit_unmask_irq0(void);
 uint64_t pit_get_ticks(void);
 
 #endif /* PIT_H */

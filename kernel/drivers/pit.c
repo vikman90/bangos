@@ -46,11 +46,17 @@ void pic_remap(void) {
     outb(PIC2_DATA, 0x01);
     io_wait();
 
-    // Unmask IRQ0 (Timer) on Master PIC, mask all on Slave PIC
-    outb(PIC1_DATA, 0xFE); // 11111110b -> only IRQ0 unmasked
+    // Mask all IRQs initially during boot
+    outb(PIC1_DATA, 0xFF);
     outb(PIC2_DATA, 0xFF);
 
-    kprintf("[PIC] 8259 PIC remapped (Master: 0x20, Slave: 0x28), IRQ0 unmasked.\n");
+    kprintf("[PIC] 8259 PIC remapped (Master: 0x20, Slave: 0x28), all IRQs masked for boot.\n");
+}
+
+void pit_unmask_irq0(void) {
+    uint8_t mask = inb(PIC1_DATA);
+    outb(PIC1_DATA, mask & ~0x01); // Unmask IRQ0
+    kprintf("[PIC] IRQ0 (PIT Timer) unmasked for multitasking.\n");
 }
 
 void pic_send_eoi(uint8_t irq) {

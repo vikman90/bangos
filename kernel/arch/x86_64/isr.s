@@ -116,6 +116,7 @@ isr_32:
     push r14
     push r15
 
+    cld
     mov rdi, rsp
     call timer_interrupt_handler wrt ..plt
     mov rsp, rax          ; switch stack pointer to target process context frame
