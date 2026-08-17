@@ -1,6 +1,8 @@
 #include "idt.h"
 #include "drivers/uart.h"
 #include "drivers/pit.h"
+#include "mm/vmm.h"
+#include "process/process.h"
 #include <stdint.h>
 
 struct idt_entry {
@@ -34,12 +36,6 @@ static void idt_set_gate(uint8_t num, uint64_t base, uint16_t sel, uint8_t flags
     idt[num].zero        = 0;
 }
 
-static inline uint64_t read_cr2(void) {
-    uint64_t val;
-    __asm__ volatile ("mov %%cr2, %0" : "=r"(val));
-    return val;
-}
-
 void idt_init(void) {
     idtp.limit = sizeof(idt) - 1;
     idtp.base  = (uint64_t)&idt;
@@ -48,9 +44,10 @@ void idt_init(void) {
     pit_init(100);
 
     for (int i = 0; i < 32; i++) {
-        uint8_t ist = (i == 8 || i == 13 || i == 14) ? 1 : 0; // Use IST1 for fault handling
+        uint8_t ist = (i == 8 || i == 13) ? 1 : 0; // Use IST1 for double fault (#DF) and #GP
         idt_set_gate((uint8_t)i, isr_stub_table[i], 0x08, 0x8E, ist);
     }
+
 
     // Gate 32: Timer IRQ 0
     idt_set_gate(32, (uint64_t)isr_32, 0x08, 0x8E, 0);
@@ -64,12 +61,15 @@ void idt_init(void) {
 }
 
 void exception_handler(exception_frame_t *frame) {
-    uart_putc('E');
-    uart_putc('X');
-    uart_putc('C');
-    uart_putc(':');
-    uart_putc('0' + (frame->vec_num % 10));
-    uart_putc('\n');
+    if (frame->vec_num == 14) {
+        if (vmm_handle_page_fault(frame) == 0) {
+            return; // Successfully resolved demand page fault!
+        }
+        process_t *proc = process_get_current();
+        if (proc && proc->pid > 1) {
+            process_exit(-11); // SIGSEGV
+        }
+    }
 
     uint64_t cr2 = read_cr2();
     kprintf("\n======================================================\n");

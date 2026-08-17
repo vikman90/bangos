@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include "loader/elf.h"
 #include "arch/x86_64/idt.h"
+#include "mm/vmm.h"
 
 #define USER_STACK_TOP 0x7FFFF0000000ULL
 #define USER_STACK_PAGES 16 // 64 KB user stack
@@ -37,14 +38,17 @@ typedef struct process {
     uint64_t        user_rsp;
     uint64_t        heap_curr;
     uint64_t        fs_base;
+    uint64_t        mmap_curr_base;
 
     // Memory tracking
     size_t          num_segments;
     elf_segment_t   segments[MAX_ELF_SEGMENTS];
     uint64_t        stack_phys_base;
     size_t          stack_num_pages;
+    vm_area_t       vmas[MAX_PROCESS_VMAS];
 
     // Dedicated kernel stack
+
     uint8_t        *kstack;
     uint64_t        kstack_top;
     context_frame_t *saved_frame;

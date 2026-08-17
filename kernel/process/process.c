@@ -49,10 +49,14 @@ process_t *process_create_from_elf(const elf_info_t *elf_info, const char *name)
         kstrncpy(proc->name, name, sizeof(proc->name) - 1);
     }
 
-    // Save segment info
+    // Save segment info and create VMAs
+    vmm_init_process(proc);
     proc->num_segments = elf_info->num_segments;
     for (size_t s = 0; s < elf_info->num_segments; s++) {
         proc->segments[s] = elf_info->segments[s];
+        vma_create(proc, elf_info->segments[s].virt_addr,
+                   elf_info->segments[s].virt_addr + (elf_info->segments[s].num_pages * PAGE_SIZE),
+                   VMA_PROT_READ | VMA_PROT_WRITE | VMA_PROT_EXEC, VMA_MAP_PRIVATE);
     }
 
     // Allocate 16 KB Kernel Stack
@@ -65,8 +69,11 @@ process_t *process_create_from_elf(const elf_info_t *elf_info, const char *name)
     proc->stack_num_pages = USER_STACK_PAGES;
     uint64_t stack_virt_base = USER_STACK_TOP - (USER_STACK_PAGES * PAGE_SIZE);
     map_user_pages(stack_virt_base, (uint64_t)stack_phys, USER_STACK_PAGES);
+    vma_create(proc, stack_virt_base, USER_STACK_TOP,
+               VMA_PROT_READ | VMA_PROT_WRITE, VMA_MAP_PRIVATE | VMA_MAP_ANONYMOUS);
 
     // Setup initial stack for musl libc:
+
     uint8_t *phys_top = (uint8_t *)stack_phys + (USER_STACK_PAGES * PAGE_SIZE);
     char *arg_str = (char *)(phys_top - 64);
     kstrncpy(arg_str, name ? name : "app", 63);
@@ -174,7 +181,14 @@ int process_fork(context_frame_t *frame) {
     // Copy parent FPU state
     kmemcpy(child->fpu_state, parent->fpu_state, sizeof(child->fpu_state));
 
+    // Copy VMAs from parent
+    child->mmap_curr_base = parent->mmap_curr_base;
+    for (int v = 0; v < MAX_PROCESS_VMAS; v++) {
+        child->vmas[v] = parent->vmas[v];
+    }
+
     child->state = PROCESS_STATE_READY;
+
 
     kprintf("[Process] Fork created child process PID=%d (PPID=%d, KStack=%p)\n",
             child->pid, child->ppid, child->kstack_top);
@@ -246,6 +260,12 @@ int process_clone(unsigned long flags, void *child_stack, int *ptid, int *ctid, 
     // Copy FPU state
     kmemcpy(thread->fpu_state, parent->fpu_state, sizeof(thread->fpu_state));
 
+    // Share/copy VMAs from parent
+    thread->mmap_curr_base = parent->mmap_curr_base;
+    for (int v = 0; v < MAX_PROCESS_VMAS; v++) {
+        thread->vmas[v] = parent->vmas[v];
+    }
+
     thread->state = PROCESS_STATE_READY;
 
     kprintf("[Thread] Created thread TID=%d (TGID=%d, Stack=%p)\n",
@@ -276,10 +296,14 @@ int process_execve(const char *path, char *const argv[], char *const envp[]) {
     proc->heap_curr   = (elf_info.max_vaddr + PAGE_SIZE - 1) & ~0xFFFULL;
     kstrncpy(proc->name, (argv && argv[0]) ? argv[0] : path, sizeof(proc->name) - 1);
 
-    // Save segment info
+    // Save segment info and create VMAs
+    vmm_init_process(proc);
     proc->num_segments = elf_info.num_segments;
     for (size_t s = 0; s < elf_info.num_segments; s++) {
         proc->segments[s] = elf_info.segments[s];
+        vma_create(proc, elf_info.segments[s].virt_addr,
+                   elf_info.segments[s].virt_addr + (elf_info.segments[s].num_pages * PAGE_SIZE),
+                   VMA_PROT_READ | VMA_PROT_WRITE | VMA_PROT_EXEC, VMA_MAP_PRIVATE);
     }
 
     // Setup fresh user stack
@@ -289,9 +313,10 @@ int process_execve(const char *path, char *const argv[], char *const envp[]) {
     }
     uint64_t stack_virt_base = USER_STACK_TOP - (USER_STACK_PAGES * PAGE_SIZE);
     map_user_pages(stack_virt_base, proc->stack_phys_base, USER_STACK_PAGES);
+    vma_create(proc, stack_virt_base, USER_STACK_TOP,
+               VMA_PROT_READ | VMA_PROT_WRITE, VMA_MAP_PRIVATE | VMA_MAP_ANONYMOUS);
 
     uint8_t *phys_top = (uint8_t *)proc->stack_phys_base + (USER_STACK_PAGES * PAGE_SIZE);
-
     // Setup argv0
     char *arg_str = (char *)(phys_top - 64);
     const char *src_name = (argv && argv[0]) ? argv[0] : path;

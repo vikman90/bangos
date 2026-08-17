@@ -104,16 +104,21 @@ void map_page(uint64_t virt, uint64_t phys, uint64_t flags) {
     size_t pdpt_idx = (virt >> 30) & 0x1FF;
     size_t pd_idx   = (virt >> 21) & 0x1FF;
     size_t pt_idx   = (virt >> 12) & 0x1FF;
+    bool new_level = false;
 
     if (!(kernel_pml4[pml4_idx] & PAGE_PRESENT)) {
         void *new_pdpt = alloc_page();
+        memset(new_pdpt, 0, PAGE_SIZE);
         kernel_pml4[pml4_idx] = (uint64_t)new_pdpt | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+        new_level = true;
     }
     uint64_t *pdpt = (uint64_t *)(kernel_pml4[pml4_idx] & ~0xFFFULL);
 
     if (!(pdpt[pdpt_idx] & PAGE_PRESENT)) {
         void *new_pd = alloc_page();
+        memset(new_pd, 0, PAGE_SIZE);
         pdpt[pdpt_idx] = (uint64_t)new_pd | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+        new_level = true;
     }
     uint64_t *pd = (uint64_t *)(pdpt[pdpt_idx] & ~0xFFFULL);
 
@@ -125,21 +130,83 @@ void map_page(uint64_t virt, uint64_t phys, uint64_t flags) {
             pt[i] = (huge_phys + i * PAGE_SIZE) | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
         }
         pd[pd_idx] = (uint64_t)new_pt | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+        new_level = true;
     } else if (!(pd[pd_idx] & PAGE_PRESENT)) {
         void *new_pt = alloc_page();
+        memset(new_pt, 0, PAGE_SIZE);
         pd[pd_idx] = (uint64_t)new_pt | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+        new_level = true;
     }
+
 
     uint64_t *pt = (uint64_t *)(pd[pd_idx] & ~0xFFFULL);
     pt[pt_idx] = (phys & ~0xFFFULL) | flags;
 
-    invlpg(virt);
+    if (new_level) {
+        mm_flush_tlb();
+    } else {
+        invlpg(virt);
+    }
 }
 
 void map_user_pages(uint64_t virt, uint64_t phys, size_t page_count) {
+
     for (size_t i = 0; i < page_count; i++) {
         map_page(virt + (i * PAGE_SIZE), phys + (i * PAGE_SIZE), PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER);
     }
+}
+
+uint64_t *get_pte_ptr(uint64_t virt) {
+    if (!kernel_pml4) return NULL;
+    size_t pml4_idx = (virt >> 39) & 0x1FF;
+    size_t pdpt_idx = (virt >> 30) & 0x1FF;
+    size_t pd_idx   = (virt >> 21) & 0x1FF;
+    size_t pt_idx   = (virt >> 12) & 0x1FF;
+
+    if (!(kernel_pml4[pml4_idx] & PAGE_PRESENT)) return NULL;
+    uint64_t *pdpt = (uint64_t *)(kernel_pml4[pml4_idx] & ~0xFFFULL);
+
+    if (!(pdpt[pdpt_idx] & PAGE_PRESENT)) return NULL;
+    uint64_t *pd = (uint64_t *)(pdpt[pdpt_idx] & ~0xFFFULL);
+
+    if (pd[pd_idx] & (1ULL << 7)) return NULL; // 2MB huge page
+    if (!(pd[pd_idx] & PAGE_PRESENT)) return NULL;
+    uint64_t *pt = (uint64_t *)(pd[pd_idx] & ~0xFFFULL);
+
+    return &pt[pt_idx];
+}
+
+void unmap_page(uint64_t virt) {
+    uint64_t *pte = get_pte_ptr(virt);
+    if (pte && (*pte & PAGE_PRESENT)) {
+        uint64_t phys = *pte & ~0xFFFULL;
+        free_page((void *)phys);
+        *pte = 0;
+        invlpg(virt);
+    }
+}
+
+void unmap_user_pages(uint64_t virt, size_t page_count) {
+    for (size_t i = 0; i < page_count; i++) {
+        unmap_page(virt + (i * PAGE_SIZE));
+    }
+}
+
+void modify_page_flags(uint64_t virt, uint64_t flags) {
+    uint64_t *pte = get_pte_ptr(virt);
+    if (pte && (*pte & PAGE_PRESENT)) {
+        uint64_t phys = *pte & ~0xFFFULL;
+        *pte = phys | flags;
+        invlpg(virt);
+    }
+}
+
+uint64_t get_phys_mapping(uint64_t virt) {
+    uint64_t *pte = get_pte_ptr(virt);
+    if (pte && (*pte & PAGE_PRESENT)) {
+        return (*pte & ~0xFFFULL) | (virt & 0xFFFULL);
+    }
+    return 0;
 }
 
 size_t mm_get_total_bytes(void) {
@@ -155,3 +222,4 @@ size_t mm_get_free_bytes(void) {
     }
     return free_count * PAGE_SIZE;
 }
+
