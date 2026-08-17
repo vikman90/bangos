@@ -1,6 +1,6 @@
 #include "memory.h"
 #include "drivers/uart.h"
-#include <string.h>
+#include "lib/kstring.h"
 
 #define MAX_PAGES 32768 // 128 MB physical pool
 static uint8_t page_bitmap[MAX_PAGES / 8];
@@ -50,7 +50,7 @@ void *alloc_pages(size_t count) {
                 page_bitmap[(i + j) / 8] |= (1 << ((i + j) % 8));
             }
             uint64_t addr = phys_memory_base + (i * PAGE_SIZE);
-            memset((void *)addr, 0, count * PAGE_SIZE);
+            kmemset((void *)addr, 0, count * PAGE_SIZE);
             return (void *)addr;
         }
 
@@ -75,7 +75,7 @@ void *alloc_page(void) {
 
 void mm_init(boot_info_t *boot_info) {
     (void)boot_info;
-    memset(page_bitmap, 0, sizeof(page_bitmap));
+    kmemset(page_bitmap, 0, sizeof(page_bitmap));
 
     // Allocate custom kernel PML4 page table
     kernel_pml4 = (uint64_t *)alloc_page();
@@ -108,7 +108,7 @@ void map_page(uint64_t virt, uint64_t phys, uint64_t flags) {
 
     if (!(kernel_pml4[pml4_idx] & PAGE_PRESENT)) {
         void *new_pdpt = alloc_page();
-        memset(new_pdpt, 0, PAGE_SIZE);
+        kmemset(new_pdpt, 0, PAGE_SIZE);
         kernel_pml4[pml4_idx] = (uint64_t)new_pdpt | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
         new_level = true;
     }
@@ -116,7 +116,7 @@ void map_page(uint64_t virt, uint64_t phys, uint64_t flags) {
 
     if (!(pdpt[pdpt_idx] & PAGE_PRESENT)) {
         void *new_pd = alloc_page();
-        memset(new_pd, 0, PAGE_SIZE);
+        kmemset(new_pd, 0, PAGE_SIZE);
         pdpt[pdpt_idx] = (uint64_t)new_pd | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
         new_level = true;
     }
@@ -133,7 +133,7 @@ void map_page(uint64_t virt, uint64_t phys, uint64_t flags) {
         new_level = true;
     } else if (!(pd[pd_idx] & PAGE_PRESENT)) {
         void *new_pt = alloc_page();
-        memset(new_pt, 0, PAGE_SIZE);
+        kmemset(new_pt, 0, PAGE_SIZE);
         pd[pd_idx] = (uint64_t)new_pt | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
         new_level = true;
     }

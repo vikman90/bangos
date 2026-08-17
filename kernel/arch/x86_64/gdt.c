@@ -1,6 +1,6 @@
 #include "gdt.h"
 #include "drivers/uart.h"
-#include <string.h>
+#include "lib/kstring.h"
 
 static uint8_t gdt_bytes[sizeof(struct gdt_entry) * 5 + sizeof(struct tss_descriptor)];
 static struct tss_entry kernel_tss;
@@ -39,8 +39,8 @@ void gdt_set_kernel_stack(uint64_t rsp) {
 }
 
 void gdt_init(void) {
-    memset(gdt_bytes, 0, sizeof(gdt_bytes));
-    memset(&kernel_tss, 0, sizeof(kernel_tss));
+    kmemset(gdt_bytes, 0, sizeof(gdt_bytes));
+    kmemset(&kernel_tss, 0, sizeof(kernel_tss));
 
     kernel_tss.rsp0 = (uint64_t)&initial_kernel_stack[sizeof(initial_kernel_stack)];
     kernel_tss.ist1 = (uint64_t)&exception_ist_stack[sizeof(exception_ist_stack)];

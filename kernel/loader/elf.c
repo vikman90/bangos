@@ -1,7 +1,7 @@
 #include "elf.h"
 #include "mm/memory.h"
 #include "drivers/uart.h"
-#include <string.h>
+#include "lib/kstring.h"
 
 int elf_load_binary(const void *elf_data, size_t elf_size, elf_info_t *out_info) {
     if (!elf_data || elf_size < sizeof(Elf64_Ehdr)) {
@@ -59,11 +59,11 @@ int elf_load_binary(const void *elf_data, size_t elf_size, elf_info_t *out_info)
 
             // Copy file data at offset within first page
             if (filesz > 0) {
-                memcpy((uint8_t *)phys_pages + vaddr_offset, (const uint8_t *)elf_data + offset, filesz);
+                kmemcpy((uint8_t *)phys_pages + vaddr_offset, (const uint8_t *)elf_data + offset, filesz);
             }
             // Zero out BSS
             if (memsz > filesz) {
-                memset((uint8_t *)phys_pages + vaddr_offset + filesz, 0, memsz - filesz);
+                kmemset((uint8_t *)phys_pages + vaddr_offset + filesz, 0, memsz - filesz);
             }
 
             // Map segment pages into page table
