@@ -35,11 +35,13 @@ char uart_getc(void) {
 }
 
 void uart_putc(char c) {
+    uint32_t timeout = 100000;
     if (c == '\n') {
-        while ((inb(COM1_PORT + 5) & 0x20) == 0);
+        while ((inb(COM1_PORT + 5) & 0x20) == 0 && --timeout > 0);
         outb(COM1_PORT, '\r');
     }
-    while ((inb(COM1_PORT + 5) & 0x20) == 0);
+    timeout = 100000;
+    while ((inb(COM1_PORT + 5) & 0x20) == 0 && --timeout > 0);
     outb(COM1_PORT, c);
 }
 

@@ -4,6 +4,7 @@
 #include "arch/x86_64/idt.h"
 #include "drivers/uart.h"
 #include "drivers/pit.h"
+#include "drivers/qemu.h"
 #include "fs/tarfs.h"
 #include "lib/kstring.h"
 
@@ -13,11 +14,13 @@ extern volatile uint64_t pit_ticks;
 static process_t process_table[MAX_PROCESSES];
 static int current_proc_idx = 0;
 static int next_pid = 1;
+static bool scheduler_enabled = false;
 
 void process_init(void) {
     kmemset(process_table, 0, sizeof(process_table));
     current_proc_idx = 0;
     next_pid = 1;
+    scheduler_enabled = false;
 }
 
 process_t *process_get_current(void) {
@@ -116,6 +119,8 @@ void process_jump_to_user(process_t *proc) {
     gdt_set_kernel_stack(proc->kstack_top);
     kernel_rsp_temp = proc->kstack_top;
     proc->state = PROCESS_STATE_RUNNING;
+    scheduler_enabled = true;
+    pit_unmask_irq0();
 
     kprintf("[Process] Launching process PID=%d (RIP=%p, RSP=%p, RFLAGS=%p) ...\n",
             proc->pid, proc->entry_point, proc->user_rsp, proc->saved_frame->rflags);
@@ -394,6 +399,8 @@ void process_exit(int code) {
     if (proc->pid == 1) {
         kprintf("\n[Process] Process PID=1 exited with status code: %d\n", code);
         kprintf("[Kernel] Init process (PID 1) terminated. System halting cleanly.\n");
+        qemu_exit((uint8_t)code);
+        qemu_poweroff();
         while (1) {
             __asm__ volatile ("cli; hlt");
         }
@@ -462,6 +469,11 @@ void schedule_yield(void) {
 
 context_frame_t *scheduler_tick(context_frame_t *current_frame) {
     pit_ticks++;
+
+    if (!scheduler_enabled) {
+        pic_send_eoi(0);
+        return current_frame;
+    }
 
     // 1. Wake up sleeping processes whose timer expired
     for (int i = 0; i < MAX_PROCESSES; i++) {

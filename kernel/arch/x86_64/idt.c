@@ -1,6 +1,7 @@
 #include "idt.h"
 #include "drivers/uart.h"
 #include "drivers/pit.h"
+#include "drivers/qemu.h"
 #include "mm/vmm.h"
 #include "process/process.h"
 #include <stdint.h>
@@ -78,6 +79,8 @@ void exception_handler(exception_frame_t *frame) {
     kprintf(" RAX=%p  RBX=%p  RCX=%p  RDX=%p\n", frame->rax, frame->rbx, frame->rcx, frame->rdx);
     kprintf(" RSI=%p  RDI=%p  RBP=%p\n", frame->rsi, frame->rdi, frame->rbp);
     kprintf("======================================================\n");
+    qemu_exit(1);
+    qemu_poweroff();
     while (1) {
         __asm__ volatile ("cli; hlt");
     }

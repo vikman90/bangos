@@ -7,6 +7,7 @@
 #include "loader/elf.h"
 #include "process/process.h"
 #include "fs/tarfs.h"
+#include "tests/ktest.h"
 
 static void fpu_sse_init(void) {
     uint64_t cr0, cr4;
@@ -43,6 +44,8 @@ void kernel_main(boot_info_t *boot_info) {
 
     tarfs_init(boot_info->ramdisk_paddr, boot_info->ramdisk_size);
     tarfs_list_files();
+
+    ktest_run_all();
 
     const void *init_elf_data = NULL;
     size_t init_elf_size = 0;

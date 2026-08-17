@@ -18,6 +18,7 @@ cmd = [
     "-bios", OVMF_PATH,
     "-drive", "file=fat:rw:build/esp,format=raw",
     "-serial", f"tcp:127.0.0.1:{PORT},server=on,wait=off",
+    "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
     "-nographic",
     "-net", "none",
     "-monitor", "none"
@@ -74,6 +75,7 @@ while time.time() - start_time < TIMEOUT:
             sys.stdout.write(text)
             sys.stdout.flush()
             out_log += text
+            last_action_time = time.time()
     except socket.timeout:
         pass
     except Exception:
@@ -81,9 +83,9 @@ while time.time() - start_time < TIMEOUT:
 
     now = time.time()
 
-    if state == 0 and "Select an option [1-6]:" in out_log:
+    if state == 0 and "Select an option [1-7]:" in out_log:
         time.sleep(0.3)
-        print("\n[Test Step 1/6] Spawning Standalone /bin/sysinfo via fork+execve (Option 2)...")
+        print("\n[Test Step 1/7] Spawning Standalone /bin/sysinfo via fork+execve (Option 2)...")
         sock.sendall(b"2\r\n")
         state = 1
         last_action_time = now
@@ -95,9 +97,9 @@ while time.time() - start_time < TIMEOUT:
         state = 2
         last_action_time = now
 
-    elif state == 2 and out_log.count("Select an option [1-6]:") >= 2:
+    elif state == 2 and out_log.count("Select an option [1-7]:") >= 2:
         time.sleep(0.3)
-        print("\n[Test Step 2/6] Spawning Standalone /bin/bench via fork+execve (Option 3)...")
+        print("\n[Test Step 2/7] Spawning Standalone /bin/bench via fork+execve (Option 3)...")
         sock.sendall(b"3\r\n")
         state = 3
         last_action_time = now
@@ -109,9 +111,9 @@ while time.time() - start_time < TIMEOUT:
         state = 4
         last_action_time = now
 
-    elif state == 4 and out_log.count("Select an option [1-6]:") >= 3:
+    elif state == 4 and out_log.count("Select an option [1-7]:") >= 3:
         time.sleep(0.3)
-        print("\n[Test Step 3/6] Spawning Standalone /bin/calc via fork+execve (Option 1)...")
+        print("\n[Test Step 3/7] Spawning Standalone /bin/calc via fork+execve (Option 1)...")
         sock.sendall(b"1\r\n")
         state = 5
         last_action_time = now
@@ -130,9 +132,9 @@ while time.time() - start_time < TIMEOUT:
         state = 7
         last_action_time = now
 
-    elif state == 7 and out_log.count("Select an option [1-6]:") >= 4:
+    elif state == 7 and out_log.count("Select an option [1-7]:") >= 4:
         time.sleep(0.3)
-        print("\n[Test Step 4/6] Spawning Preemptive Multitasking /bin/tasks (Option 4)...")
+        print("\n[Test Step 4/7] Spawning Preemptive Multitasking /bin/tasks (Option 4)...")
         sock.sendall(b"4\r\n")
         state = 8
         last_action_time = now
@@ -151,9 +153,9 @@ while time.time() - start_time < TIMEOUT:
         state = 10
         last_action_time = now
 
-    elif state == 10 and out_log.count("Select an option [1-6]:") >= 5:
+    elif state == 10 and out_log.count("Select an option [1-7]:") >= 5:
         time.sleep(0.3)
-        print("\n[Test Step 5/6] Spawning Multithreading & Synchronization /bin/threads (Option 5)...")
+        print("\n[Test Step 5/7] Spawning Multithreading & Synchronization /bin/threads (Option 5)...")
         sock.sendall(b"5\r\n")
         state = 11
         last_action_time = now
@@ -179,14 +181,28 @@ while time.time() - start_time < TIMEOUT:
         state = 14
         last_action_time = now
 
-    elif state == 14 and (out_log.count("Select an option [1-6]:") >= 5 or "threads" in out_log):
+    elif state == 14 and out_log.count("Select an option [1-7]:") >= 6:
         time.sleep(0.3)
-        print("\n[Test Step 6/6] Requesting System Halt/Exit (Option 6)...")
+        print("\n[Test Step 6/7] Running Userland Specification Test Suites (Option 6)...")
         sock.sendall(b"6\r\n")
         state = 15
         last_action_time = now
 
-    elif state == 15 and ("Init process (PID 1) terminated" in out_log or "PID=1 exited" in out_log):
+    elif state == 15 and "All process lifecycle tests evaluated to PASS!" in out_log and "Press Enter to return to main menu..." in out_log[len(out_log)-200:]:
+        time.sleep(0.3)
+        print("\n[Test] Returning to init menu from test suites...")
+        sock.sendall(b"\r\n")
+        state = 16
+        last_action_time = now
+
+    elif state == 16 and (out_log.count("Select an option [1-7]:") >= 7 or "tests" in out_log):
+        time.sleep(0.3)
+        print("\n[Test Step 7/7] Requesting System Halt/Exit (Option 7)...")
+        sock.sendall(b"7\r\n")
+        state = 17
+        last_action_time = now
+
+    elif state == 17 and ("Shutting down BangOS" in out_log or "PID=1 exited" in out_log or "called exit(0)" in out_log):
         # Allow any trailing bytes to be received
         time.sleep(0.5)
         try:
@@ -195,14 +211,12 @@ while time.time() - start_time < TIMEOUT:
                 out_log += more.decode("utf-8", errors="ignore")
         except Exception:
             pass
-        print("\n\n[SUCCESS] All standalone ELF executions, multitasking and multithreading verified successfully!")
+        print("\n\n[SUCCESS] All standalone ELF executions, multitasking, multithreading, and specification tests verified successfully!")
         sock.close()
         proc.kill()
         break
 
-
-
-    if now - last_action_time > 8:
+    if now - last_action_time > 25:
         print(f"\n[Test Warning] Inactivity timeout in state {state}. Proceeding to verification assertions...")
         break
 
@@ -213,17 +227,22 @@ proc.kill()
 clean_log = re.sub(r'\x1b\[[0-9;]*[mGKHJ]', '', out_log)
 
 checks = [
+    ("All Ring 0 kernel self-tests evaluated to PASS!", "Ring 0 In-Kernel Unit Test Suite (PMM, VMM, KString, TarFS, Sched)"),
+    ("Bad File Descriptor Error Propagation (-EBADF)", "Userland Syscall Bad File Descriptor Validation (-EBADF)"),
+    ("Null & Kernel Pointer Safety Checking (-EFAULT)", "Userland Syscall Pointer Bounds & Safety Checking (-EFAULT)"),
+    ("Unimplemented System Call Dispatch Invariant (-ENOSYS)", "Userland Unimplemented Syscall Invariant (-ENOSYS)"),
+    ("VMM 8MB Demand Paging & Zero-Fill Verification", "Userland VMM Demand Paging & Zero-Fill Verification"),
+    ("VMM mprotect & Partial Hole Munmap", "Userland VMM mprotect & Split Munmap"),
+    ("Process Fork + Exit Status Waitpid Propagation", "Userland Process Fork + Exit Status Waitpid Propagation"),
     ("BangOS (x86_64)", "BangOS OS header banner"),
     ("System Name:    BangOS", "uname syscall validation"),
     ("Calculated Pi:  3.141592", "FPU/SSE math benchmark"),
-    ("Demand Paging:  1024 pages faulted & mapped on-demand", "VMM Demand Paging (#PF) on 4MB mmap"),
-    ("mmap, mprotect and munmap completed successfully", "VMM lifecycle (mmap, mprotect, munmap)"),
     ("Hypotenuse: 5.00", "Hypotenuse calculation"),
     ("System Multitasking Status: ACTIVE", "Preemptive multitasking /bin/tasks"),
     ("pong", "UART interaction during background task"),
     ("MUTEX SYNCHRONIZATION SUCCESS!", "Thread Mutex atomic synchronization"),
     ("Producer-Consumer pipeline completed", "Counting Semaphore synchronization"),
-    ("Init process (PID 1) terminated", "Clean process shutdown")
+    ("Shutting down BangOS system cleanly...", "Clean process shutdown")
 ]
 
 all_passed = True
