@@ -207,9 +207,10 @@ BangOS/
 - [x] Multi-ELF Process Execution (`SYS_FORK`, `SYS_EXECVE`, `SYS_WAIT4`)
 - [x] Preemptive Multitasking & Context Switching (PIT 8254 100 Hz timer)
 - [x] Multithreading, Shared Address Space (`CLONE_VM`) & Futex Synchronization
-- [ ] Virtual Memory Manager with Demand Paging & `mmap` backing
+- [x] Virtual Memory Manager with Demand Paging & `mmap` backing
 - [ ] ATA / AHCI Storage Drive Driver & FAT32/ext2 Filesystem
 - [ ] VirtIO Network Driver & Lightweight TCP/IP Stack
+
 
 ---
 

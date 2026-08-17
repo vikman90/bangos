@@ -35,9 +35,10 @@ When userland executes `syscall`:
 | `1` | `SYS_WRITE` | `fd`, `buf`, `count` | Writes characters to UART serial console (`COM1`) |
 | `7` | `SYS_POLL` | `fds`, `nfds`, `timeout` | Non-blocking poll for I/O readiness |
 | `8` | `SYS_LSEEK` | `fd`, `offset`, `whence` | Returns `-ESPIPE` (-29) for serial streams |
-| `9` | `SYS_MMAP` | `addr`, `len`, `prot`, ... | Allocates physical/virtual pages dynamically in user space |
-| `10` | `SYS_MPROTECT` | `addr`, `len`, `prot` | Returns `0` (success) |
-| `11` | `SYS_MUNMAP` | `addr`, `len` | Returns `0` (success) |
+| `9` | `SYS_MMAP` | `addr`, `len`, `prot`, `flags`, `fd`, `off` | Allocates virtual memory area (VMA) and memory pages dynamically in user space |
+| `10` | `SYS_MPROTECT` | `addr`, `len`, `prot` | Modifies VMA permissions and updates page table protection bits |
+| `11` | `SYS_MUNMAP` | `addr`, `len` | Unmaps virtual memory range, reclaims physical frames, and trims VMAs |
+
 | `12` | `SYS_BRK` | `brk_addr` | Queries or expands user process heap boundary |
 | `16` | `SYS_IOCTL` | `fd`, `cmd`, `arg` | Handles terminal attributes (`TIOCGWINSZ`, etc.) |
 | `20` | `SYS_WRITEV` | `fd`, `iov`, `iovcnt` | Writes formatted vector buffers produced by `printf()` / `vfprintf()` |
