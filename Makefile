@@ -33,7 +33,7 @@ endif
 
 DOCKER_IMAGE ?= bangos-builder
 
-.PHONY: all userland esp run-qemu test clean docker-image docker-build docker-test docker-shell
+.PHONY: all userland esp run-qemu test clean docker-image docker-build docker-test docker-shell docs-build docs-serve
 
 all: userland esp
 
@@ -91,3 +91,9 @@ docker-test: docker-image
 
 docker-shell: docker-image
 	docker run --rm -it --platform linux/amd64 -v "$$(pwd):/bangos" $(DOCKER_IMAGE) bash
+
+docs-build:
+	@if [ -d ".venv" ]; then .venv/bin/mkdocs build --strict; else mkdocs build --strict; fi
+
+docs-serve:
+	@if [ -d ".venv" ]; then .venv/bin/mkdocs serve -a 0.0.0.0:8000; else mkdocs serve -a 0.0.0.0:8000; fi
