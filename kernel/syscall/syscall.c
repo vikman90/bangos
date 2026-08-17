@@ -2,12 +2,12 @@
 #include "drivers/uart.h"
 #include "drivers/keyboard.h"
 #include "mm/memory.h"
+#include "mm/vmm.h"
 #include "process/process.h"
 #include "lib/kstring.h"
 
 static uint64_t current_brk = 0x600000000000ULL;
 static uint64_t mapped_brk_page = 0x600000000000ULL;
-static uint64_t current_mmap = 0x700000000000ULL;
 static uint64_t kernel_boot_tsc = 0;
 
 #define TSC_FREQ_HZ 1000000000ULL // 1.0 GHz baseline TSC frequency for calibration
@@ -81,20 +81,77 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             return 1;
         }
 
+
         case SYS_MMAP: {
+            uint64_t addr = arg1;
             size_t len = (size_t)arg2;
+            int prot = (int)arg3;
+            int flags = (int)arg4;
+
             if (len == 0) return -22; // -EINVAL
-            size_t num_pages = (len + PAGE_SIZE - 1) / PAGE_SIZE;
+
+            process_t *proc = process_get_current();
+            if (!proc) return -12; // -ENOMEM
+
+            size_t aligned_len = (len + PAGE_SIZE - 1) & ~0xFFFULL;
+            uint64_t virt_addr;
+
+            if (flags & VMA_MAP_FIXED) {
+                if (addr == 0 || (addr & 0xFFF)) return -22; // -EINVAL: unaligned address
+                virt_addr = addr;
+            } else if (addr != 0 && (addr & 0xFFF) == 0 && addr >= 0x40000000ULL && vma_find(proc, addr) == NULL) {
+                virt_addr = addr;
+            } else {
+                virt_addr = vmm_find_free_area(proc, aligned_len);
+            }
+
+            uint32_t vma_prot = 0;
+            if (prot & 0x1) vma_prot |= VMA_PROT_READ;
+            if (prot & 0x2) vma_prot |= VMA_PROT_WRITE;
+            if (prot & 0x4) vma_prot |= VMA_PROT_EXEC;
+
+            uint32_t vma_flags = VMA_MAP_ANONYMOUS;
+            if (flags & 0x01) vma_flags |= VMA_MAP_SHARED;
+            if (flags & 0x02) vma_flags |= VMA_MAP_PRIVATE;
+            if (flags & 0x10) vma_flags |= VMA_MAP_FIXED;
+
+            vm_area_t *vma = vma_create(proc, virt_addr, virt_addr + aligned_len, vma_prot, vma_flags);
+            if (!vma) return -12; // -ENOMEM
+
+            size_t num_pages = aligned_len / PAGE_SIZE;
             void *phys = alloc_pages(num_pages);
-            if (!phys) return -12; // -ENOMEM
-            uint64_t virt_addr = current_mmap;
-            current_mmap += num_pages * PAGE_SIZE;
-            map_user_pages(virt_addr, (uint64_t)phys, num_pages);
+            if (phys) {
+                map_user_pages(virt_addr, (uint64_t)phys, num_pages);
+            }
+
             return (int64_t)virt_addr;
         }
 
-        case SYS_MPROTECT:
-        case SYS_MUNMAP:
+        case SYS_MPROTECT: {
+            uint64_t addr = arg1;
+            size_t len = (size_t)arg2;
+            int prot = (int)arg3;
+            if (len == 0 || (addr & 0xFFF)) return -22; // -EINVAL
+
+            process_t *proc = process_get_current();
+            if (!proc) return -12;
+
+            size_t aligned_len = (len + PAGE_SIZE - 1) & ~0xFFFULL;
+            return vma_protect(proc, addr, addr + aligned_len, prot);
+        }
+
+        case SYS_MUNMAP: {
+            uint64_t addr = arg1;
+            size_t len = (size_t)arg2;
+            if (len == 0 || (addr & 0xFFF)) return -22; // -EINVAL
+
+            process_t *proc = process_get_current();
+            if (!proc) return -12;
+
+            size_t aligned_len = (len + PAGE_SIZE - 1) & ~0xFFFULL;
+            return vma_remove(proc, addr, addr + aligned_len);
+        }
+
         case SYS_RT_SIGACTION:
         case SYS_RT_SIGPROCMASK: {
             return 0; // Success

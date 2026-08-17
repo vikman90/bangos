@@ -17,4 +17,11 @@ void exception_handler(exception_frame_t *frame);
 context_frame_t *timer_interrupt_handler(context_frame_t *frame);
 void switch_to_context_frame(context_frame_t *frame) __attribute__((noreturn));
 
+static inline uint64_t read_cr2(void) {
+    uint64_t val;
+    __asm__ volatile ("mov %%cr2, %0" : "=r"(val));
+    return val;
+}
+
 #endif /* IDT_H */
+

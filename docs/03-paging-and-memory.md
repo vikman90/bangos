@@ -51,3 +51,20 @@ The `map_user_pages(virt, phys, count)` function maps any virtual address range 
 1. Traverses or creates PML4, PDPT, PD, and PT levels on demand.
 2. Dynamically splits 2MB huge pages into 512 4KB entries if required.
 3. Invalidates the TLB entry using `invlpg` and reloads `%cr3` to synchronize the CPU cache.
+
+---
+
+## 📦 Virtual Memory Manager & Demand Paging (`kernel/mm/vmm.c`)
+
+BangOS features a per-process Virtual Memory Area (VMA) manager that supports dynamic anonymous allocations and demand paging:
+
+* **VMA Tracking (`vm_area_t`)**:
+  Each process tracks allocated virtual memory regions (`proc->vmas`), recording `start`, `end`, protection attributes (`VMA_PROT_READ`, `VMA_PROT_WRITE`, `VMA_PROT_EXEC`), and mapping flags (`VMA_MAP_PRIVATE`, `VMA_MAP_SHARED`, `VMA_MAP_ANONYMOUS`).
+* **VMM Interface**:
+  - `vmm_init_process(proc)`: Initializes process VMA table and per-process 4GB virtual address window offset.
+  - `vma_create(proc, start, end, prot, flags)`: Allocates and registers a new virtual memory area.
+  - `vma_find(proc, addr)`: Finds the VMA containing a given virtual address.
+  - `vma_protect(proc, start, end, new_prot)`: Modifies protection attributes and splits VMAs as needed.
+  - `vma_remove(proc, start, end)`: Unmaps pages, reclaims physical frames, and trims/splits VMAs (`munmap`).
+  - `vmm_handle_page_fault(frame)`: Page Fault (`#PF`, Vector 14) exception handler that allocates physical frames on-demand for valid VMAs, zero-fills anonymous pages, and updates page table entries with hardware permissions.
+

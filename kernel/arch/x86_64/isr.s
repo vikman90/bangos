@@ -56,6 +56,7 @@ ISR_ERRCODE   30
 ISR_NOERRCODE 31
 
 isr_common_stub:
+    cld
     push rax
     push rbx
     push rcx
@@ -95,6 +96,7 @@ isr_common_stub:
     iretq
 
 align 16
+
 isr_32:
     push qword 0          ; dummy error code
     push qword 32         ; vector 32 (IRQ0 Timer)
