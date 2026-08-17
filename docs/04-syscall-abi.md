@@ -1,61 +1,169 @@
-# 04 - System Call Interface (Linux x86_64 ABI)
+# 04 - System Call Subsystem (Linux x86_64 ABI)
 
-BangOS implements the native Linux x86_64 system call interface via the hardware `syscall` / `sysret` instruction mechanism. This allows running unmodified standard C binaries compiled statically with `musl-gcc`.
+BangOS implements the native **Linux x86_64 System Call Interface** using the hardware `syscall` / `sysret` instruction mechanism. This enables unmodified binaries compiled statically with `musl-gcc` to execute directly on the bare-metal kernel.
 
 ---
 
-## ⚡ MSR Configuration (`kernel/arch/x86_64/syscall_entry.s`)
+## ⚡ Hardware MSR Configuration (`kernel/syscall/syscall.c`)
 
-The `syscall` and `sysret` instructions rely on Model Specific Registers (MSRs):
+In Long Mode, system calls do not use slow software interrupt gates (`int 0x80`). Instead, the CPU executes the native `syscall` instruction, which switches from Ring 3 to Ring 0 in a few clock cycles by reading four Model-Specific Registers (MSRs):
 
-| MSR Address | MSR Name | Configured Value | Purpose |
+| MSR Address | MSR Constant | Configured Value | Purpose |
 | :--- | :--- | :--- | :--- |
-| `0xC0000080` | `IA32_EFER` | `EFER.SCE = 1` | Enables `syscall`/`sysret` instructions |
-| `0xC0000081` | `MSR_STAR` | `0x00100008` | Base CS/SS segment selectors for Kernel and User |
-| `0xC0000082` | `MSR_LSTAR` | `&syscall_entry` | Ring 0 target RIP address when `syscall` is executed |
-| `0xC0000084` | `MSR_SFMASK` | `0x200` | RFLAGS mask (clears IF bit upon entering syscall) |
+| `0xC0000080` | `IA32_EFER` | `EFER.SCE = 1` (Bit 0) | System Call Enable (activates `syscall`/`sysret` instructions). |
+| `0xC0000081` | `MSR_STAR` | `0x0010000800000000` | Defines target GDT segment selectors for Kernel (`0x08`/`0x10`) and User (`0x18`/`0x20`). |
+| `0xC0000082` | `MSR_LSTAR` | `&syscall_entry` | Ring 0 target `RIP` address jumped to when `syscall` is executed. |
+| `0xC0000084` | `MSR_SFMASK`| `0x200` (Bit 9) | RFLAGS mask: automatically clears the Interrupt Flag (`IF`) on syscall entry. |
+
+```c
+void syscall_init_msrs(void) {
+    uint64_t efer = read_msr(0xC0000080);
+    efer |= 1ULL; // Enable SCE (System Call Extension)
+    write_msr(0xC0000080, efer);
+
+    // STAR MSR: Bits 32-47 = Kernel CS (0x08), Bits 48-63 = User CS/SS Base (0x10)
+    uint64_t star = ((uint64_t)0x0010 << 48) | ((uint64_t)0x0008 << 32);
+    write_msr(0xC0000081, star);
+
+    // LSTAR MSR: Target 64-bit RIP address for syscall_entry
+    write_msr(0xC0000082, (uint64_t)&syscall_entry);
+
+    // SFMASK MSR: Mask IF (Interrupt Flag 0x200) to disable interrupts upon entry
+    write_msr(0xC0000084, 0x200);
+}
+```
 
 ---
 
-## 📋 System V AMD64 ABI Register Convention
+## 📋 System V AMD64 ABI Register Passing Convention
 
-When userland executes `syscall`:
-* **Syscall Number**: Register `RAX`.
-* **Arguments**: `RDI` (1st), `RSI` (2nd), `RDX` (3rd), `R10` (4th), `R8` (5th), `R9` (6th).
-* **Saved State**: `RCX` saves user `RIP`; `R11` saves user `RFLAGS`.
-* **Return Value**: Returned in `RAX` (negative values represent Linux `-ERRNO` error codes).
+When a userland binary invokes `syscall`:
+* **Syscall Number**: Loaded into register `RAX`.
+* **Arguments (Up to 6)**:
+  1. `RDI` (Argument 1)
+  2. `RSI` (Argument 2)
+  3. `RDX` (Argument 3)
+  4. `R10` (Argument 4 — note that `R10` is used instead of `RCX` because `syscall` clobbers `RCX`)
+  5. `R8`  (Argument 5)
+  6. `R9`  (Argument 6)
+* **Hardware Saved State**:
+  - `RCX`: Saves userland `RIP`.
+  - `R11`: Saves userland `RFLAGS`.
+* **Return Code**: Evaluated in `RAX`. Positive integers or `0` denote success; negative numbers denote standard Linux `-ERRNO` codes (e.g. `-EINVAL = -22`).
 
 ---
 
-## 🛠️ Implemented Syscalls Table (`kernel/syscall/syscall.c`)
+## ⚙️ Assembly Trampoline (`kernel/arch/x86_64/syscall_entry.s`)
 
-| Syscall # | Name | Arguments | Behavior in BangOS |
-| :--- | :--- | :--- | :--- |
-| `0` | `SYS_READ` | `fd`, `buf`, `count` | Reads characters from UART serial console (`COM1`) |
-| `1` | `SYS_WRITE` | `fd`, `buf`, `count` | Writes characters to UART serial console (`COM1`) |
-| `7` | `SYS_POLL` | `fds`, `nfds`, `timeout` | Non-blocking poll for I/O readiness |
-| `8` | `SYS_LSEEK` | `fd`, `offset`, `whence` | Returns `-ESPIPE` (-29) for serial streams |
-| `9` | `SYS_MMAP` | `addr`, `len`, `prot`, `flags`, `fd`, `off` | Allocates virtual memory area (VMA) and memory pages dynamically in user space |
-| `10` | `SYS_MPROTECT` | `addr`, `len`, `prot` | Modifies VMA permissions and updates page table protection bits |
-| `11` | `SYS_MUNMAP` | `addr`, `len` | Unmaps virtual memory range, reclaims physical frames, and trims VMAs |
+Because userland stack pointers (`RSP`) cannot be trusted by the kernel, `syscall_entry` immediately swaps to the active process's kernel stack before invoking C handlers:
 
-| `12` | `SYS_BRK` | `brk_addr` | Queries or expands user process heap boundary |
-| `16` | `SYS_IOCTL` | `fd`, `cmd`, `arg` | Handles terminal attributes (`TIOCGWINSZ`, etc.) |
-| `20` | `SYS_WRITEV` | `fd`, `iov`, `iovcnt` | Writes formatted vector buffers produced by `printf()` / `vfprintf()` |
-| `24` | `SYS_SCHED_YIELD` | *none* | Yields the remaining CPU time quantum to the next ready task |
-| `35` | `SYS_NANOSLEEP` | `req`, `rem` | High-precision sleep using calibrated timestamp counter (TSC) |
-| `39` | `SYS_GETPID` | *none* | Returns current process PID |
-| `56` | `SYS_CLONE` | `flags`, `stack`, `ptid`, `ctid`, `newtls` | Creates new execution context: processes or threads (`CLONE_VM`, `CLONE_THREAD`) |
-| `57` | `SYS_FORK` | *none* | Creates child process context with independent address space |
-| `58` | `SYS_VFORK` | *none* | Creates child process context |
-| `59` | `SYS_EXECVE` | `path`, `argv`, `envp` | Replaces current process with new ELF from TarFS ramdisk |
-| `60` | `SYS_EXIT` | `status` | Terminates process/thread, notifies parent via `wait4`, or halts system if PID 1 |
-| `61` | `SYS_WAIT4` | `pid`, `status`, `opts` | Waits for child process termination and retrieves exit status code |
-| `63` | `SYS_UNAME` | `buf` | Populates `utsname` (BangOS release, architecture, hostname) |
-| `99` | `SYS_SYSINFO` | `info` | Populates `sysinfo` (total RAM, free RAM, uptime, active procs) |
-| `158` | `SYS_ARCH_PRCTL` | `code`, `addr` | Configures TLS (Thread Local Storage) by writing `MSR_FS_BASE` (`0xC0000100`) |
-| `186` | `SYS_GETTID` | *none* | Returns caller thread TID (Process ID / Thread ID) |
-| `202` | `SYS_FUTEX` | `uaddr`, `op`, `val`, ... | Fast user-space locking primitive (`FUTEX_WAIT`, `FUTEX_WAKE`) |
-| `218` | `SYS_SET_TID_ADDRESS` | `tidptr` | Returns process TID |
-| `228` | `SYS_CLOCK_GETTIME` | `clk_id`, `tp` | Returns monotonic / realtime timestamp in seconds and nanoseconds |
-| `231` | `SYS_EXIT_GROUP` | `status` | Terminates process or halts system if PID 1 |
+```assembly
+.global syscall_entry
+syscall_entry:
+    // 1. Temporarily stash user RSP and switch to process kernel stack
+    movq %rsp, user_rsp_temp(%rip)
+    movq kernel_rsp_temp(%rip), %rsp
+
+    // 2. Construct context_frame_t on kernel stack
+    pushq $0x1B                   // User SS (0x18 | 3)
+    pushq user_rsp_temp(%rip)     // User RSP
+    pushq %r11                    // User RFLAGS (saved by hardware)
+    pushq $0x23                   // User CS (0x20 | 3)
+    pushq %rcx                    // User RIP (saved by hardware)
+    pushq $0                      // Error Code
+    pushq $0                      // Vector Number
+
+    pushq %rax
+    pushq %rbx
+    pushq %rcx
+    pushq %rdx
+    pushq %rsi
+    pushq %rdi
+    pushq %rbp
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    pushq %r11
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    pushq %r15
+
+    // 3. Align stack to 16-byte boundary for C calling convention
+    movq %rsp, %r9                // 6th arg: context_frame_t*
+    subq $8, %rsp
+
+    // 4. Pass syscall arguments to do_syscall(sys_num, arg1, arg2, arg3, arg4, frame)
+    movq %rax, %rdi               // Arg 1: Syscall number
+    movq %rsi, %rdx               // Arg 3: 2nd syscall arg
+    movq %r10, %r8                // Arg 5: 4th syscall arg
+    movq 120(%rsp), %rsi          // Arg 2: 1st syscall arg (RDI saved in frame)
+    movq 104(%rsp), %rcx          // Arg 4: 3rd syscall arg (RDX saved in frame)
+
+    call do_syscall
+
+    addq $8, %rsp
+    movq %rax, 112(%rsp)          // Store return value in frame->rax
+
+    // 5. Restore registers and return to userland via sysretq
+    popq %r15
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %r11
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rbp
+    popq %rdi
+    popq %rsi
+    popq %rdx
+    popq %rcx
+    popq %rbx
+    popq %rax
+
+    addq $16, %rsp                // Pop vector and error code
+    popq %rcx                     // Restore user RIP into RCX
+    addq $8, %rsp                 // Skip CS
+    popq %r11                     // Restore user RFLAGS into R11
+    popq %rsp                     // Restore user RSP
+
+    sysretq                       // Return to Ring 3 (loads RIP from RCX, RFLAGS from R11)
+```
+
+---
+
+## 🛠️ Implemented System Calls Reference (`kernel/syscall/syscall.c`)
+
+| Syscall # | Constant | Arguments | Return / Behavior |
+| :---: | :--- | :--- | :--- |
+| **`0`** | `SYS_READ` | `int fd, char *buf, size_t count` | Reads characters from UART serial console / keyboard. Returns `-EBADF` (-9) or `-EFAULT` (-14) on invalid buffers. |
+| **`1`** | `SYS_WRITE` | `int fd, const char *buf, size_t count` | Transmits characters to UART COM1 serial port. Returns bytes written. |
+| **`7`** | `SYS_POLL` | `struct pollfd *fds, nfds_t nfds, int timeout` | Non-blocking poll; returns `1` (I/O ready). |
+| **`8`** | `SYS_LSEEK` | `int fd, off_t offset, int whence` | Returns `-ESPIPE` (-29) for non-seekable serial streams. |
+| **`9`** | `SYS_MMAP` | `void *addr, size_t len, int prot, int flags, int fd, off_t off` | Allocates a Virtual Memory Area (VMA) and memory pages dynamically. |
+| **`10`** | `SYS_MPROTECT` | `void *addr, size_t len, int prot` | Modifies VMA permissions and updates hardware page table entry flags. |
+| **`11`** | `SYS_MUNMAP` | `void *addr, size_t len` | Releases virtual memory range, reclaims physical frames, and trims VMAs. |
+| **`12`** | `SYS_BRK` | `uint64_t brk_addr` | Queries current heap pointer (`brk(0)`) or expands process heap dynamically. |
+| **`13`** | `SYS_RT_SIGACTION` | `int sig, const struct sigaction *act, ...` | Signal handler registration stub (returns `0`). |
+| **`14`** | `SYS_RT_SIGPROCMASK`| `int how, const sigset_t *set, ...` | Signal mask configuration stub (returns `0`). |
+| **`16`** | `SYS_IOCTL` | `int fd, unsigned long cmd, void *arg` | Handles terminal attributes (e.g. `TIOCGWINSZ` returning 80x24 window size). |
+| **`20`** | `SYS_WRITEV` | `int fd, const struct iovec *iov, int iovcnt` | Vectorized scatter-gather output used by `printf()` / `vfprintf()`. |
+| **`24`** | `SYS_SCHED_YIELD` | *none* | Cooperatively yields remaining CPU quantum to next ready task. |
+| **`35`** | `SYS_NANOSLEEP` | `const struct timespec *req, struct timespec *rem` | High-precision sleep using calibrated timestamp counter (TSC) and PIT timer ticks. |
+| **`39`** | `SYS_GETPID` | *none* | Returns current process group / process ID (`proc->tgid`). |
+| **`56`** | `SYS_CLONE` | `unsigned long flags, void *child_stack, int *ptid, int *ctid, void *newtls` | Creates execution context: processes or threads (`CLONE_VM`). |
+| **`57`** | `SYS_FORK` | *none* | Creates child process with duplicated memory mappings and execution state. |
+| **`58`** | `SYS_VFORK` | *none* | Creates child process context. |
+| **`59`** | `SYS_EXECVE` | `const char *path, char *const argv[], char *const envp[]` | Replaces current process with new standalone ELF from TarFS ramdisk. |
+| **`60`** | `SYS_EXIT` | `int status` | Terminates process/thread, notifies parent via `wait4`, or halts system if PID 1. |
+| **`61`** | `SYS_WAIT4` | `pid_t pid, int *status, int options, struct rusage *ru` | Waits for child process termination and retrieves exit status code. |
+| **`63`** | `SYS_UNAME` | `struct utsname *buf` | Populates system name ("BangOS"), release ("0.2.0"), architecture ("x86_64"). |
+| **`99`** | `SYS_SYSINFO` | `struct sysinfo *info` | Populates total RAM, free RAM, uptime in seconds, and active process count. |
+| **`158`** | `SYS_ARCH_PRCTL` | `int code, unsigned long addr` | Sets Thread Local Storage (TLS) by updating `MSR_FS_BASE` (`0xC0000100`). |
+| **`186`** | `SYS_GETTID` | *none* | Returns thread ID (`proc->pid`). |
+| **`202`** | `SYS_FUTEX` | `uint32_t *uaddr, int op, uint32_t val, ...` | Fast user-space sleeping and waking synchronization primitive (`FUTEX_WAIT`, `FUTEX_WAKE`). |
+| **`218`** | `SYS_SET_TID_ADDRESS`| `int *tidptr` | Registers thread clear address upon exit; returns thread TID. |
+| **`228`** | `SYS_CLOCK_GETTIME`| `clockid_t clk_id, struct timespec *tp` | Returns monotonic and realtime timestamps with nanosecond precision. |
+| **`231`** | `SYS_EXIT_GROUP` | `int status` | Terminates process or cleanly halts machine if PID 1. |
+| **Default** | *Unhandled* | *any* | Evaluates to `-ENOSYS` (-38). |
