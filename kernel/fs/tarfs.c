@@ -120,3 +120,103 @@ int tarfs_lookup(const char *path, const void **out_data, size_t *out_size) {
 
     return -1;
 }
+
+static vfs_node_t tarfs_root;
+static vfs_node_t tarfs_files[64];
+static int tarfs_file_count = 0;
+
+static int64_t tarfs_vfs_read(vfs_node_t *node, uint64_t offset, size_t size, void *buffer) {
+    if (!node || !buffer) return -1;
+    const void *data = node->priv_data;
+    if (!data || offset >= node->size) return 0;
+
+    size_t to_read = size;
+    if (offset + to_read > node->size) {
+        to_read = node->size - offset;
+    }
+
+    kmemcpy(buffer, (const uint8_t *)data + offset, to_read);
+    return (int64_t)to_read;
+}
+
+static int tarfs_vfs_finddir(vfs_node_t *dir, const char *name, vfs_node_t **out_child) {
+    if (!dir || !name || !out_child) return -1;
+
+    for (int i = 0; i < tarfs_file_count; i++) {
+        if (kstrcmp(tarfs_files[i].name, name) == 0) {
+            *out_child = &tarfs_files[i];
+            return 0;
+        }
+    }
+    return -1;
+}
+
+static int tarfs_vfs_readdir(vfs_node_t *dir, uint32_t index, vfs_dirent_t *out_dirent) {
+    if (!dir || !out_dirent) return -1;
+    if ((int)index >= tarfs_file_count) return -1;
+
+    out_dirent->d_ino = tarfs_files[index].inode;
+    out_dirent->d_type = (uint8_t)tarfs_files[index].type;
+    kstrncpy(out_dirent->d_name, tarfs_files[index].name, sizeof(out_dirent->d_name));
+    return 0;
+}
+
+static vfs_ops_t tarfs_dir_ops = {
+    .open = NULL,
+    .close = NULL,
+    .read = NULL,
+    .write = NULL,
+    .readdir = tarfs_vfs_readdir,
+    .finddir = tarfs_vfs_finddir
+};
+
+static vfs_ops_t tarfs_file_ops = {
+    .open = NULL,
+    .close = NULL,
+    .read = tarfs_vfs_read,
+    .write = NULL,
+    .readdir = NULL,
+    .finddir = NULL
+};
+
+vfs_node_t *tarfs_get_vfs_root(void) {
+    tarfs_dir_ops.readdir = tarfs_vfs_readdir;
+    tarfs_dir_ops.finddir = tarfs_vfs_finddir;
+    tarfs_file_ops.read = tarfs_vfs_read;
+
+    kmemset(&tarfs_root, 0, sizeof(tarfs_root));
+    kstrncpy(tarfs_root.name, "/", sizeof(tarfs_root.name));
+    tarfs_root.type = VFS_DIRECTORY;
+    tarfs_root.inode = 1;
+    tarfs_root.ops = &tarfs_dir_ops;
+    tarfs_file_count = 0;
+
+    if (!tar_archive_base || tar_archive_size < 512) {
+        return &tarfs_root;
+    }
+
+    size_t offset = 0;
+    while (offset + 512 <= tar_archive_size && tarfs_file_count < 64) {
+        const struct ustar_header *hdr = (const struct ustar_header *)(tar_archive_base + offset);
+        if (hdr->name[0] == '\0') break;
+
+        uint64_t file_size = parse_octal(hdr->size, sizeof(hdr->size));
+
+        if (hdr->typeflag == '0' || hdr->typeflag == '\0') {
+            vfs_node_t *fn = &tarfs_files[tarfs_file_count];
+            kmemset(fn, 0, sizeof(vfs_node_t));
+            kstrncpy(fn->name, normalize_path(hdr->name), sizeof(fn->name));
+            fn->type = VFS_FILE;
+            fn->inode = (uint32_t)(tarfs_file_count + 10);
+            fn->size = file_size;
+            fn->ops = &tarfs_file_ops;
+            fn->priv_data = (void *)(tar_archive_base + offset + 512);
+            tarfs_file_count++;
+        }
+
+        offset += 512 + ((file_size + 511) & ~511ULL);
+    }
+
+    return &tarfs_root;
+}
+
