@@ -31,9 +31,10 @@ static void show_menu(void) {
     printf("  " ANSI_BOLD ANSI_GREEN "[3]" ANSI_RESET " CPU FPU/SSE & Timer Benchmark  (execve /bin/bench)\n");
     printf("  " ANSI_BOLD ANSI_GREEN "[4]" ANSI_RESET " Preemptive Multitasking Tasks  (execve /bin/tasks)\n");
     printf("  " ANSI_BOLD ANSI_GREEN "[5]" ANSI_RESET " Multithreading & Mutex Sync    (execve /bin/threads)\n");
-    printf("  " ANSI_BOLD ANSI_GREEN "[6]" ANSI_RESET " Run Specification Test Suites  (execve /bin/test_*)\n");
-    printf("  " ANSI_BOLD ANSI_RED   "[7]" ANSI_RESET " Shutdown / Halt System         (exit)\n\n");
-    printf(ANSI_BOLD ANSI_YELLOW "Select an option [1-7]: " ANSI_RESET);
+    printf("  " ANSI_BOLD ANSI_GREEN "[6]" ANSI_RESET " Disk Explorer & Storage Mgr    (execve /bin/disktool)\n");
+    printf("  " ANSI_BOLD ANSI_GREEN "[7]" ANSI_RESET " Run Specification Test Suites  (execve /bin/test_*)\n");
+    printf("  " ANSI_BOLD ANSI_RED   "[8]" ANSI_RESET " Shutdown / Halt System         (exit)\n\n");
+    printf(ANSI_BOLD ANSI_YELLOW "Select an option [1-8]: " ANSI_RESET);
     fflush(stdout);
 }
 
@@ -82,17 +83,20 @@ int main(int argc, char **argv) {
             launch_program("/bin/tasks", "tasks");
         } else if (strcmp(line, "5") == 0 || strcmp(line, "threads") == 0) {
             launch_program("/bin/threads", "threads");
-        } else if (strcmp(line, "6") == 0 || strcmp(line, "tests") == 0 || strcmp(line, "test") == 0) {
+        } else if (strcmp(line, "6") == 0 || strcmp(line, "disktool") == 0 || strcmp(line, "disk") == 0) {
+            launch_program("/bin/disktool", "disktool");
+        } else if (strcmp(line, "7") == 0 || strcmp(line, "tests") == 0 || strcmp(line, "test") == 0) {
             launch_program("/bin/test_syscall_safety", "test_syscall_safety");
             launch_program("/bin/test_vmm_demand", "test_vmm_demand");
             launch_program("/bin/test_process_lifecycle", "test_process_lifecycle");
+            launch_program("/bin/test_ext2_vfs", "test_ext2_vfs");
             tui_pause();
-        } else if (strcmp(line, "7") == 0 || strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
+        } else if (strcmp(line, "8") == 0 || strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
             printf("\n" ANSI_BOLD ANSI_RED "Shutting down BangOS system cleanly..." ANSI_RESET "\n");
             fflush(stdout);
             exit(0);
         } else if (strlen(line) > 0) {
-            printf(ANSI_RED "Invalid selection '%s'. Please choose an option between 1 and 7.\n" ANSI_RESET, line);
+            printf(ANSI_RED "Invalid selection '%s'. Please choose an option between 1 and 8.\n" ANSI_RESET, line);
             tui_pause();
         }
     }

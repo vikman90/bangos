@@ -40,6 +40,13 @@ int main(int argc, char **argv) {
     }
 
     tui_print_divider();
+
+    printf(ANSI_BOLD ANSI_CYAN "[Mounted Storage & Filesystems]" ANSI_RESET "\n");
+    printf("  - Primary Drive:  /dev/ata0 (32 MB ATA PIO Block Storage)\n");
+    printf("  - Root FS (/):    In-Memory TarFS USTAR Ramdisk (/bin)\n");
+    printf("  - Persistent FS:  ext2 mounted at /mnt/ext2 (Read-Write)\n");
+
+    tui_print_divider();
     tui_pause();
     return 0;
 }
