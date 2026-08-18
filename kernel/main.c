@@ -7,6 +7,10 @@
 #include "loader/elf.h"
 #include "process/process.h"
 #include "fs/tarfs.h"
+#include "fs/vfs.h"
+#include "drivers/block.h"
+#include "drivers/ata.h"
+#include "fs/ext2/ext2.h"
 #include "tests/ktest.h"
 
 static void fpu_sse_init(void) {
@@ -42,8 +46,21 @@ void kernel_main(boot_info_t *boot_info) {
     syscall_init_msrs();
     process_init();
 
+    vfs_init();
     tarfs_init(boot_info->ramdisk_paddr, boot_info->ramdisk_size);
+    vfs_mount("/", "tarfs", NULL, tarfs_get_vfs_root());
     tarfs_list_files();
+
+    ata_init();
+    for (int d = 0; d < block_get_device_count(); d++) {
+        block_dev_t *bdev = block_get_device_by_index(d);
+        if (bdev) {
+            vfs_node_t *ext2_root = NULL;
+            if (ext2_mount_device(bdev, "/mnt/ext2", &ext2_root) == 0) {
+                break; // Successfully mounted ext2 volume
+            }
+        }
+    }
 
     ktest_run_all();
 

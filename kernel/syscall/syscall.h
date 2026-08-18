@@ -7,6 +7,10 @@
 
 #define SYS_READ            0
 #define SYS_WRITE           1
+#define SYS_OPEN            2
+#define SYS_CLOSE           3
+#define SYS_STAT            4
+#define SYS_FSTAT           5
 #define SYS_POLL            7
 #define SYS_LSEEK           8
 #define SYS_MMAP            9
@@ -31,9 +35,41 @@
 #define SYS_ARCH_PRCTL      158
 #define SYS_GETTID          186
 #define SYS_FUTEX           202
+#define SYS_GETDENTS64      217
 #define SYS_SET_TID_ADDRESS 218
 #define SYS_CLOCK_GETTIME   228
 #define SYS_EXIT_GROUP      231
+#define SYS_OPENAT          257
+#define SYS_NEWFSTATAT      262
+
+struct stat {
+    uint64_t st_dev;
+    uint64_t st_ino;
+    uint64_t st_nlink;
+    uint32_t st_mode;
+    uint32_t st_uid;
+    uint32_t st_gid;
+    uint32_t __pad0;
+    uint64_t st_rdev;
+    int64_t  st_size;
+    int64_t  st_blksize;
+    int64_t  st_blocks;
+    int64_t  st_atime_sec;
+    uint64_t st_atime_nsec;
+    int64_t  st_mtime_sec;
+    uint64_t st_mtime_nsec;
+    int64_t  st_ctime_sec;
+    uint64_t st_ctime_nsec;
+    int64_t  __unused[3];
+};
+
+struct linux_dirent64 {
+    uint64_t d_ino;
+    int64_t  d_off;
+    uint16_t d_reclen;
+    uint8_t  d_type;
+    char     d_name[];
+};
 
 /* Clone Flags */
 #define CLONE_VM            0x00000100

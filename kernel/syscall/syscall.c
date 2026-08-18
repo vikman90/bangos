@@ -5,6 +5,7 @@
 #include "mm/vmm.h"
 #include "process/process.h"
 #include "lib/kstring.h"
+#include "fs/vfs.h"
 
 static uint64_t current_brk = 0x600000000000ULL;
 static uint64_t mapped_brk_page = 0x600000000000ULL;
@@ -30,18 +31,35 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             char *buf = (char *)arg2;
             size_t count = (size_t)arg3;
 
-            if (fd < 0 || (fd != 0 && fd != 1 && fd != 2)) return -9; // -EBADF
-            if (!buf) return -14; // -EFAULT
+            if (fd < 0 || fd >= VFS_MAX_FD) return -9; // -EBADF
+            if (!buf && count > 0) return -14; // -EFAULT
+            if ((uint64_t)buf >= 0xFFFF800000000000ULL && count > 0) return -14; // -EFAULT
             if (count == 0) return 0;
 
-            size_t bytes_read = 0;
-            while (bytes_read < count) {
-                char ch = console_getchar();
-                buf[bytes_read++] = ch;
-                uart_putc(ch);
-                if (ch == '\n') break;
+            if (fd == 0 || fd == 1 || fd == 2) {
+                size_t bytes_read = 0;
+                while (bytes_read < count) {
+                    char ch = console_getchar();
+                    buf[bytes_read++] = ch;
+                    uart_putc(ch);
+                    if (ch == '\n') break;
+                }
+                return (int64_t)bytes_read;
             }
-            return (int64_t)bytes_read;
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            file_desc_t *fdesc = fd_get(proc->fd_table, fd);
+            if (!fdesc || !fdesc->node || !fdesc->node->ops || !fdesc->node->ops->read) {
+                return -9; // -EBADF
+            }
+
+            int64_t bytes = fdesc->node->ops->read(fdesc->node, fdesc->offset, count, buf);
+            if (bytes > 0) {
+                fdesc->offset += (uint64_t)bytes;
+            }
+            return bytes;
         }
 
         case SYS_WRITE: {
@@ -49,14 +67,72 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             const char *buf = (const char *)arg2;
             size_t count = (size_t)arg3;
 
-            if (fd < 0 || (fd != 1 && fd != 2)) return -9; // -EBADF
-            if (!buf) return -14; // -EFAULT
+            if (fd < 0 || fd >= VFS_MAX_FD) return -9; // -EBADF
+            if (!buf && count > 0) return -14; // -EFAULT
+            if ((uint64_t)buf >= 0xFFFF800000000000ULL && count > 0) return -14; // -EFAULT
             if (count == 0) return 0;
 
-            for (size_t i = 0; i < count; i++) {
-                uart_putc(buf[i]);
+            if (fd == 1 || fd == 2) {
+                for (size_t i = 0; i < count; i++) {
+                    uart_putc(buf[i]);
+                }
+                return (int64_t)count;
             }
-            return (int64_t)count;
+            if (fd == 0) return -9; // -EBADF
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            file_desc_t *fdesc = fd_get(proc->fd_table, fd);
+            if (!fdesc || !fdesc->node || !fdesc->node->ops || !fdesc->node->ops->write) {
+                return -9; // -EBADF
+            }
+
+            int64_t bytes = fdesc->node->ops->write(fdesc->node, fdesc->offset, count, buf);
+            if (bytes > 0) {
+                fdesc->offset += (uint64_t)bytes;
+            }
+            return bytes;
+        }
+
+        case SYS_OPEN:
+        case SYS_OPENAT: {
+            const char *path = (sys_num == SYS_OPENAT) ? (const char *)arg2 : (const char *)arg1;
+            int flags = (sys_num == SYS_OPENAT) ? (int)arg3 : (int)arg2;
+            int mode = (sys_num == SYS_OPENAT) ? (int)arg4 : (int)arg3;
+
+            if (!path) return -14; // -EFAULT
+            if ((uint64_t)path >= 0xFFFF800000000000ULL) return -14; // -EFAULT
+
+            vfs_node_t *node = NULL;
+            int res = vfs_open(path, flags, mode, &node);
+            if (res != 0 || !node) {
+                return -2; // -ENOENT
+            }
+
+            process_t *proc = process_get_current();
+            if (!proc) return -12; // -ENOMEM
+
+            int fd = fd_alloc(proc->fd_table, node, flags);
+            if (fd < 0) {
+                if (node->refcount > 0) node->refcount--;
+                return -24; // -EMFILE
+            }
+            return (int64_t)fd;
+        }
+
+        case SYS_CLOSE: {
+            int fd = (int)arg1;
+            if (fd < 0 || fd >= VFS_MAX_FD) return -9; // -EBADF
+            if (fd == 0 || fd == 1 || fd == 2) return 0; // Stdio close is a no-op
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            if (fd_free(proc->fd_table, fd) != 0) {
+                return -9; // -EBADF
+            }
+            return 0;
         }
 
         case SYS_WRITEV: {
@@ -217,7 +293,139 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
         }
 
         case SYS_LSEEK: {
-            return -29; // -ESPIPE
+            int fd = (int)arg1;
+            int64_t offset = (int64_t)arg2;
+            int whence = (int)arg3;
+
+            if (fd < 0 || fd >= VFS_MAX_FD) return -9; // -EBADF
+            if (fd == 0 || fd == 1 || fd == 2) return -29; // -ESPIPE
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            file_desc_t *fdesc = fd_get(proc->fd_table, fd);
+            if (!fdesc || !fdesc->node) return -9; // -EBADF
+
+            uint64_t new_offset = fdesc->offset;
+            if (whence == VFS_SEEK_SET) {
+                if (offset < 0) return -22; // -EINVAL
+                new_offset = (uint64_t)offset;
+            } else if (whence == VFS_SEEK_CUR) {
+                if ((int64_t)fdesc->offset + offset < 0) return -22;
+                new_offset = fdesc->offset + offset;
+            } else if (whence == VFS_SEEK_END) {
+                if ((int64_t)fdesc->node->size + offset < 0) return -22;
+                new_offset = fdesc->node->size + offset;
+            } else {
+                return -22; // -EINVAL
+            }
+
+            fdesc->offset = new_offset;
+            return (int64_t)new_offset;
+        }
+
+        case SYS_STAT:
+        case SYS_NEWFSTATAT: {
+            const char *path = (sys_num == SYS_NEWFSTATAT) ? (const char *)arg2 : (const char *)arg1;
+            struct stat *st = (sys_num == SYS_NEWFSTATAT) ? (struct stat *)arg3 : (struct stat *)arg2;
+
+            if (!path || !st) return -14; // -EFAULT
+            if ((uint64_t)path >= 0xFFFF800000000000ULL || (uint64_t)st >= 0xFFFF800000000000ULL) return -14;
+
+            vfs_node_t *node = NULL;
+            if (vfs_lookup(path, &node) != 0 || !node) {
+                return -2; // -ENOENT
+            }
+
+            kmemset(st, 0, sizeof(struct stat));
+            st->st_ino = node->inode;
+            st->st_size = (int64_t)node->size;
+            st->st_blksize = 1024;
+            st->st_blocks = (node->size + 511) / 512;
+            st->st_mode = (node->type == VFS_DIRECTORY) ? (0040000 | 0755) : (0100000 | 0644);
+            st->st_nlink = 1;
+            return 0;
+        }
+
+        case SYS_FSTAT: {
+            int fd = (int)arg1;
+            struct stat *st = (struct stat *)arg2;
+
+            if (fd < 0 || fd >= VFS_MAX_FD || !st) return -14;
+            if ((uint64_t)st >= 0xFFFF800000000000ULL) return -14;
+
+            if (fd == 0 || fd == 1 || fd == 2) {
+                kmemset(st, 0, sizeof(struct stat));
+                st->st_mode = 0020000 | 0620; // Character device
+                return 0;
+            }
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            file_desc_t *fdesc = fd_get(proc->fd_table, fd);
+            if (!fdesc || !fdesc->node) return -9; // -EBADF
+
+            kmemset(st, 0, sizeof(struct stat));
+            st->st_ino = fdesc->node->inode;
+            st->st_size = (int64_t)fdesc->node->size;
+            st->st_blksize = 1024;
+            st->st_blocks = (fdesc->node->size + 511) / 512;
+            st->st_mode = (fdesc->node->type == VFS_DIRECTORY) ? (0040000 | 0755) : (0100000 | 0644);
+            st->st_nlink = 1;
+            return 0;
+        }
+
+        case SYS_GETDENTS64: {
+            int fd = (int)arg1;
+            void *dirp = (void *)arg2;
+            size_t count = (size_t)arg3;
+
+            if (fd < 0 || fd >= VFS_MAX_FD || !dirp || count == 0) return -14;
+            if ((uint64_t)dirp >= 0xFFFF800000000000ULL) return -14;
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            file_desc_t *fdesc = fd_get(proc->fd_table, fd);
+            if (!fdesc || !fdesc->node || fdesc->node->type != VFS_DIRECTORY || !fdesc->node->ops || !fdesc->node->ops->readdir) {
+                return -9; // -EBADF / not a directory
+            }
+
+            size_t bytes_written = 0;
+            uint8_t *out_ptr = (uint8_t *)dirp;
+            uint32_t entry_index = (uint32_t)fdesc->offset;
+
+            while (bytes_written < count) {
+                vfs_dirent_t dent;
+                kmemset(&dent, 0, sizeof(dent));
+                if (fdesc->node->ops->readdir(fdesc->node, entry_index, &dent) != 0) {
+                    break; // End of directory
+                }
+
+                size_t name_len = kstrlen(dent.d_name);
+                size_t reclen = sizeof(struct linux_dirent64) + name_len + 1;
+                reclen = (reclen + 7) & ~7ULL; // 8-byte align
+
+                if (bytes_written + reclen > count) {
+                    if (bytes_written == 0) return -22; // -EINVAL buffer too small
+                    break;
+                }
+
+                struct linux_dirent64 *d = (struct linux_dirent64 *)(out_ptr + bytes_written);
+                d->d_ino = dent.d_ino;
+                d->d_off = entry_index + 1;
+                d->d_reclen = (uint16_t)reclen;
+                d->d_type = (dent.d_type == VFS_DIRECTORY) ? 4 : 8; // DT_DIR = 4, DT_REG = 8
+                kmemcpy(d->d_name, dent.d_name, name_len);
+                d->d_name[name_len] = '\0';
+
+                bytes_written += reclen;
+                entry_index++;
+            }
+
+            fdesc->offset = entry_index;
+            return (int64_t)bytes_written;
         }
 
         case SYS_SCHED_YIELD: {

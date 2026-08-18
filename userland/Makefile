@@ -4,7 +4,8 @@ LDFLAGS = -static -lm
 
 BIN_DIR = bin
 TARGETS = $(BIN_DIR)/init $(BIN_DIR)/calc $(BIN_DIR)/sysinfo $(BIN_DIR)/bench $(BIN_DIR)/tasks $(BIN_DIR)/threads \
-          $(BIN_DIR)/test_syscall_safety $(BIN_DIR)/test_vmm_demand $(BIN_DIR)/test_process_lifecycle
+          $(BIN_DIR)/disktool $(BIN_DIR)/test_syscall_safety $(BIN_DIR)/test_vmm_demand $(BIN_DIR)/test_process_lifecycle \
+          $(BIN_DIR)/test_ext2_vfs
 INITRD = initrd.tar
 
 .PHONY: all clean
@@ -35,6 +36,9 @@ $(BIN_DIR)/tasks: src/tasks.c src/tui.o | $(BIN_DIR)
 $(BIN_DIR)/threads: src/threads.c src/tui.o | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< src/tui.o -o $@ $(LDFLAGS)
 
+$(BIN_DIR)/disktool: src/disktool.c src/tui.o | $(BIN_DIR)
+	$(CC) $(CFLAGS) $< src/tui.o -o $@ $(LDFLAGS)
+
 $(BIN_DIR)/test_syscall_safety: src/test_syscall_safety.c | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
@@ -44,8 +48,11 @@ $(BIN_DIR)/test_vmm_demand: src/test_vmm_demand.c | $(BIN_DIR)
 $(BIN_DIR)/test_process_lifecycle: src/test_process_lifecycle.c | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
+$(BIN_DIR)/test_ext2_vfs: src/test_ext2_vfs.c | $(BIN_DIR)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
 $(INITRD): $(TARGETS)
-	tar -cf $(INITRD) --format=ustar -C $(BIN_DIR) init calc sysinfo bench tasks threads test_syscall_safety test_vmm_demand test_process_lifecycle
+	tar -cf $(INITRD) --format=ustar -C $(BIN_DIR) init calc sysinfo bench tasks threads disktool test_syscall_safety test_vmm_demand test_process_lifecycle test_ext2_vfs
 
 clean:
 	rm -rf src/*.o $(BIN_DIR) $(INITRD) init

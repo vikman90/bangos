@@ -17,6 +17,7 @@ cmd = [
     "-m", "512M",
     "-bios", OVMF_PATH,
     "-drive", "file=fat:rw:build/esp,format=raw",
+    "-drive", "file=build/disk.img,format=raw,index=1,media=disk",
     "-serial", f"tcp:127.0.0.1:{PORT},server=on,wait=off",
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
     "-nographic",
@@ -83,9 +84,9 @@ while time.time() - start_time < TIMEOUT:
 
     now = time.time()
 
-    if state == 0 and "Select an option [1-7]:" in out_log:
+    if state == 0 and "Select an option [1-8]:" in out_log:
         time.sleep(0.3)
-        print("\n[Test Step 1/7] Spawning Standalone /bin/sysinfo via fork+execve (Option 2)...")
+        print("\n[Test Step 1/8] Spawning Standalone /bin/sysinfo via fork+execve (Option 2)...")
         sock.sendall(b"2\r\n")
         state = 1
         last_action_time = now
@@ -97,9 +98,9 @@ while time.time() - start_time < TIMEOUT:
         state = 2
         last_action_time = now
 
-    elif state == 2 and out_log.count("Select an option [1-7]:") >= 2:
+    elif state == 2 and out_log.count("Select an option [1-8]:") >= 2:
         time.sleep(0.3)
-        print("\n[Test Step 2/7] Spawning Standalone /bin/bench via fork+execve (Option 3)...")
+        print("\n[Test Step 2/8] Spawning Standalone /bin/bench via fork+execve (Option 3)...")
         sock.sendall(b"3\r\n")
         state = 3
         last_action_time = now
@@ -111,9 +112,9 @@ while time.time() - start_time < TIMEOUT:
         state = 4
         last_action_time = now
 
-    elif state == 4 and out_log.count("Select an option [1-7]:") >= 3:
+    elif state == 4 and out_log.count("Select an option [1-8]:") >= 3:
         time.sleep(0.3)
-        print("\n[Test Step 3/7] Spawning Standalone /bin/calc via fork+execve (Option 1)...")
+        print("\n[Test Step 3/8] Spawning Standalone /bin/calc via fork+execve (Option 1)...")
         sock.sendall(b"1\r\n")
         state = 5
         last_action_time = now
@@ -132,9 +133,9 @@ while time.time() - start_time < TIMEOUT:
         state = 7
         last_action_time = now
 
-    elif state == 7 and out_log.count("Select an option [1-7]:") >= 4:
+    elif state == 7 and out_log.count("Select an option [1-8]:") >= 4:
         time.sleep(0.3)
-        print("\n[Test Step 4/7] Spawning Preemptive Multitasking /bin/tasks (Option 4)...")
+        print("\n[Test Step 4/8] Spawning Preemptive Multitasking /bin/tasks (Option 4)...")
         sock.sendall(b"4\r\n")
         state = 8
         last_action_time = now
@@ -153,9 +154,9 @@ while time.time() - start_time < TIMEOUT:
         state = 10
         last_action_time = now
 
-    elif state == 10 and out_log.count("Select an option [1-7]:") >= 5:
+    elif state == 10 and out_log.count("Select an option [1-8]:") >= 5:
         time.sleep(0.3)
-        print("\n[Test Step 5/7] Spawning Multithreading & Synchronization /bin/threads (Option 5)...")
+        print("\n[Test Step 5/8] Spawning Multithreading & Synchronization /bin/threads (Option 5)...")
         sock.sendall(b"5\r\n")
         state = 11
         last_action_time = now
@@ -181,29 +182,49 @@ while time.time() - start_time < TIMEOUT:
         state = 14
         last_action_time = now
 
-    elif state == 14 and out_log.count("Select an option [1-7]:") >= 6:
+    elif state == 14 and out_log.count("Select an option [1-8]:") >= 6:
         time.sleep(0.3)
-        print("\n[Test Step 6/7] Running Userland Specification Test Suites (Option 6)...")
+        print("\n[Test Step 6/8] Spawning Storage & ext2 Explorer /bin/disktool (Option 6)...")
         sock.sendall(b"6\r\n")
         state = 15
         last_action_time = now
 
-    elif state == 15 and "All process lifecycle tests evaluated to PASS!" in out_log and "Press Enter to return to main menu..." in out_log[len(out_log)-200:]:
+    elif state == 15 and "Select an option [1-8]:" in out_log[len(out_log)-200:]:
         time.sleep(0.3)
-        print("\n[Test] Returning to init menu from test suites...")
-        sock.sendall(b"\r\n")
+        print("\n[Test] Running Persistence & Disk Write Test in /bin/disktool (Option 6)...")
+        sock.sendall(b"6\r\n")
         state = 16
         last_action_time = now
 
-    elif state == 16 and (out_log.count("Select an option [1-7]:") >= 7 or "tests" in out_log):
+    elif state == 16 and "SUCCESS: Disk write and readback verified" in out_log and "Press Enter to return to main menu..." in out_log[len(out_log)-200:]:
         time.sleep(0.3)
-        print("\n[Test Step 7/7] Requesting System Halt/Exit (Option 7)...")
-        sock.sendall(b"7\r\n")
+        print("\n[Test] Dismissing pause and exiting /bin/disktool (Option 8)...")
+        sock.sendall(b"\r\n8\r\n")
         state = 17
         last_action_time = now
 
-    elif state == 17 and ("Shutting down BangOS" in out_log or "PID=1 exited" in out_log or "called exit(0)" in out_log):
-        # Allow any trailing bytes to be received
+    elif state == 17 and out_log.count("Select an option [1-8]:") >= 7:
+        time.sleep(0.3)
+        print("\n[Test Step 7/8] Running Userland Specification Test Suites (Option 7)...")
+        sock.sendall(b"7\r\n")
+        state = 18
+        last_action_time = now
+
+    elif state == 18 and "All ext2 and VFS specification tests evaluated to PASS!" in out_log and "Press Enter to return to main menu..." in out_log[len(out_log)-200:]:
+        time.sleep(0.3)
+        print("\n[Test] Returning to init menu from test suites...")
+        sock.sendall(b"\r\n")
+        state = 19
+        last_action_time = now
+
+    elif state == 19 and (out_log.count("Select an option [1-8]:") >= 8 or "tests" in out_log):
+        time.sleep(0.3)
+        print("\n[Test Step 8/8] Requesting System Halt/Exit (Option 8)...")
+        sock.sendall(b"8\r\n")
+        state = 20
+        last_action_time = now
+
+    elif state == 20 and ("Shutting down BangOS" in out_log or "PID=1 exited" in out_log or "called exit(0)" in out_log):
         time.sleep(0.5)
         try:
             more = sock.recv(1024)
@@ -211,7 +232,7 @@ while time.time() - start_time < TIMEOUT:
                 out_log += more.decode("utf-8", errors="ignore")
         except Exception:
             pass
-        print("\n\n[SUCCESS] All standalone ELF executions, multitasking, multithreading, and specification tests verified successfully!")
+        print("\n\n[SUCCESS] All standalone ELF executions, storage drive operations, ext2 VFS specs, and multitasking verified successfully!")
         sock.close()
         proc.kill()
         break
@@ -227,13 +248,17 @@ proc.kill()
 clean_log = re.sub(r'\x1b\[[0-9;]*[mGKHJ]', '', out_log)
 
 checks = [
-    ("All Ring 0 kernel self-tests evaluated to PASS!", "Ring 0 In-Kernel Unit Test Suite (PMM, VMM, KString, TarFS, Sched)"),
+    ("All Ring 0 kernel self-tests evaluated to PASS!", "Ring 0 In-Kernel Unit Test Suite (PMM, VMM, KString, TarFS, Sched, ATA, ext2)"),
     ("Bad File Descriptor Error Propagation (-EBADF)", "Userland Syscall Bad File Descriptor Validation (-EBADF)"),
     ("Null & Kernel Pointer Safety Checking (-EFAULT)", "Userland Syscall Pointer Bounds & Safety Checking (-EFAULT)"),
     ("Unimplemented System Call Dispatch Invariant (-ENOSYS)", "Userland Unimplemented Syscall Invariant (-ENOSYS)"),
     ("VMM 8MB Demand Paging & Zero-Fill Verification", "Userland VMM Demand Paging & Zero-Fill Verification"),
     ("VMM mprotect & Partial Hole Munmap", "Userland VMM mprotect & Split Munmap"),
     ("Process Fork + Exit Status Waitpid Propagation", "Userland Process Fork + Exit Status Waitpid Propagation"),
+    ("POSIX File Open & Data Read", "Userland ext2 POSIX File Open & Data Read"),
+    ("POSIX lseek() SEEK_SET & SEEK_CUR", "Userland ext2 POSIX lseek Offset Repositioning"),
+    ("POSIX fstat() File Size & Mode", "Userland ext2 POSIX fstat Attribute Query"),
+    ("POSIX File Creation, Persistence & Readback", "Userland ext2 File Creation & Persistence Verification"),
     ("BangOS (x86_64)", "BangOS OS header banner"),
     ("System Name:    BangOS", "uname syscall validation"),
     ("Calculated Pi:  3.141592", "FPU/SSE math benchmark"),
@@ -242,6 +267,7 @@ checks = [
     ("pong", "UART interaction during background task"),
     ("MUTEX SYNCHRONIZATION SUCCESS!", "Thread Mutex atomic synchronization"),
     ("Producer-Consumer pipeline completed", "Counting Semaphore synchronization"),
+    ("Disk write and readback verified with 100% byte integrity", "Interactive /bin/disktool Storage Persistence & Readback"),
     ("Shutting down BangOS system cleanly...", "Clean process shutdown")
 ]
 

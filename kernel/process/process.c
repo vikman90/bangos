@@ -51,6 +51,7 @@ process_t *process_create_from_elf(const elf_info_t *elf_info, const char *name)
     if (name) {
         kstrncpy(proc->name, name, sizeof(proc->name) - 1);
     }
+    fd_table_init(proc->fd_table);
 
     // Save segment info and create VMAs
     vmm_init_process(proc);
@@ -192,8 +193,11 @@ int process_fork(context_frame_t *frame) {
         child->vmas[v] = parent->vmas[v];
     }
 
-    child->state = PROCESS_STATE_READY;
+    // Clone file descriptors from parent
+    fd_table_init(child->fd_table);
+    fd_table_clone(child->fd_table, parent->fd_table);
 
+    child->state = PROCESS_STATE_READY;
 
     kprintf("[Process] Fork created child process PID=%d (PPID=%d, KStack=%p)\n",
             child->pid, child->ppid, child->kstack_top);
@@ -233,6 +237,10 @@ int process_clone(unsigned long flags, void *child_stack, int *ptid, int *ctid, 
     thread->fs_base = newtls ? (uint64_t)newtls : parent->fs_base;
     thread->stack_phys_base = parent->stack_phys_base;
     kstrncpy(thread->name, parent->name, sizeof(thread->name) - 1);
+
+    // Clone file descriptors from parent
+    fd_table_init(thread->fd_table);
+    fd_table_clone(thread->fd_table, parent->fd_table);
 
     // Share segment mappings with parent
     thread->num_segments = parent->num_segments;
@@ -390,6 +398,12 @@ int process_wait4(int pid, int *status_ptr) {
 
 void process_exit(int code) {
     process_t *proc = process_get_current();
+
+    for (int i = 3; i < VFS_MAX_FD; i++) {
+        if (proc->fd_table[i].in_use) {
+            fd_free(proc->fd_table, i);
+        }
+    }
 
     if (proc->clear_child_tid) {
         *(proc->clear_child_tid) = 0;

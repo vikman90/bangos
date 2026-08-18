@@ -1,0 +1,16 @@
+======================================================================
+  Welcome to BangOS Persistent Storage (ext2 Filesystem)
+======================================================================
+
+You are reading a real file directly from a secondary ATA storage drive
+formatted with the Second Extended Filesystem (ext2).
+
+BangOS features:
+- 64-bit x86_64 Long Mode Bare-Metal Microkernel
+- 4-Level Paging with Demand Paging on #PF
+- ATA PIO Storage Driver (LBA28 / LBA48)
+- Modular Virtual File System (VFS)
+- ext2 Filesystem Engine with Inode Table Traversal
+- POSIX System Call ABI (open, read, write, lseek, fstat, getdents64)
+
+Enjoy exploring persistent storage in BangOS!

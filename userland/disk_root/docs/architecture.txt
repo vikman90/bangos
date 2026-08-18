@@ -1,0 +1,8 @@
+BangOS Storage Architecture
+===========================
+User Applications -> POSIX Syscalls (open, read, write, etc.)
+  -> Virtual File System (VFS)
+    -> ext2 Driver (/mnt/ext2)
+      -> Block Device Layer (block_dev_t)
+        -> ATA PIO Driver (Primary/Secondary IDE Channels)
+          -> QEMU Virtual Hard Disk (build/disk.img)

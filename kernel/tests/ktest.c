@@ -19,6 +19,8 @@ int ktest_run_all(void) {
     test_vmm_all();
     test_tarfs_all();
     test_sched_all();
+    test_ata_all();
+    test_ext2_all();
 
     kprintf("\n------------------------------------------------------\n");
     kprintf("[KTEST SUMMARY] Total Passed: %d | Total Failed: %d\n",

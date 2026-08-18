@@ -59,6 +59,8 @@ bool test_vmm_all(void);
 bool test_kstring_all(void);
 bool test_tarfs_all(void);
 bool test_sched_all(void);
+bool test_ata_all(void);
+bool test_ext2_all(void);
 
 // Master test entry point
 int ktest_run_all(void);
