@@ -8,6 +8,8 @@
 #include "arch/x86_64/idt.h"
 #include "mm/vmm.h"
 
+#include "fs/vfs.h"
+
 #define USER_STACK_TOP 0x7FFFF0000000ULL
 #define USER_STACK_PAGES 16 // 64 KB user stack
 #define KERNEL_STACK_PAGES 4 // 16 KB kernel stack
@@ -47,8 +49,10 @@ typedef struct process {
     size_t          stack_num_pages;
     vm_area_t       vmas[MAX_PROCESS_VMAS];
 
-    // Dedicated kernel stack
+    // File descriptors
+    file_desc_t     fd_table[VFS_MAX_FD];
 
+    // Dedicated kernel stack
     uint8_t        *kstack;
     uint64_t        kstack_top;
     context_frame_t *saved_frame;
