@@ -26,10 +26,14 @@ The repository serves as a comprehensive, clean foundation for learning low-leve
   * **8254 PIT Timer Driver**: Generates 100 Hz timer interrupts (10 ms time quantum) for Round-Robin process scheduling.
   * **Process Lifecycle**: `SYS_FORK`, `SYS_CLONE` (with `CLONE_VM`), `SYS_EXECVE`, `SYS_WAIT4`, and `SYS_EXIT`.
   * **Fast Userspace Locking**: `SYS_FUTEX` supporting `FUTEX_WAIT` and `FUTEX_WAKE`.
-* **Linux x86_64 Syscall ABI**: Hardware `syscall` / `sysret` MSR interface (`STAR`, `LSTAR`, `SFMASK`, `EFER.SCE`) implementing over 20 POSIX syscalls (`read`, `write`, `writev`, `mmap`, `mprotect`, `munmap`, `brk`, `poll`, `ioctl`, `nanosleep`, `sysinfo`, `uname`, `arch_prctl`, etc.).
+* **Block Storage & ext2 Filesystem Engine**:
+  * **ATA / IDE PIO Driver**: Hardware controller probing, 16-bit PIO sector read/write with LBA28 and LBA48 support.
+  * **Virtual File System (VFS)**: Hierarchical VFS supporting multiple mountpoints (`/` for TarFS ramdisk, `/mnt/ext2` for persistent storage), path resolution, and file descriptors.
+  * **ext2 Filesystem Engine**: Superblock parsing (`0xEF53`), block group descriptor tables, inode tables, direct/indirect block resolution, directory lookup, and block write allocation.
+* **Linux x86_64 Syscall ABI**: Hardware `syscall` / `sysret` MSR interface (`STAR`, `LSTAR`, `SFMASK`, `EFER.SCE`) implementing over 25 POSIX syscalls (`open`, `close`, `read`, `write`, `lseek`, `stat`, `fstat`, `getdents64`, `mmap`, `mprotect`, `munmap`, `brk`, `poll`, `ioctl`, `nanosleep`, `sysinfo`, `uname`, `arch_prctl`, etc.).
 * **Two-Tier Test Verification**:
-  * **Ring 0 `ktest`**: In-kernel unit tests verifying memory allocators, page tables, TarFS, and scheduler.
-  * **Ring 3 POSIX Specs**: Standalone userland test suites validating syscall safety, demand paging, and process lifecycles.
+  * **Ring 0 `ktest`**: In-kernel unit tests verifying memory allocators, page tables, TarFS, scheduler, ATA PIO, and ext2.
+  * **Ring 3 POSIX Specs**: Standalone userland test suites validating syscall safety, demand paging, process lifecycles, and ext2 file operations.
 * **Standalone Multi-ELF Userland**:
   * **`/bin/init` (PID 1)**: Interactive process supervisor and launcher.
   * **`/bin/calc`**: Standalone geometric calculator.
@@ -37,6 +41,7 @@ The repository serves as a comprehensive, clean foundation for learning low-leve
   * **`/bin/bench`**: Multi-phase CPU, FPU/SSE, dynamic memory, and demand paging benchmark suite.
   * **`/bin/tasks`**: Preemptive multitasking and concurrent computation workers demo.
   * **`/bin/threads`**: Multithreading, mutexes, counting semaphores, and futex synchronization suite.
+  * **`/bin/disktool`**: Interactive storage explorer, superblock inspector, and persistence tester.
 
 ---
 
@@ -60,6 +65,8 @@ Comprehensive documentation explaining the theoretical concepts, hardware specif
 | [**09 - Userland Environment**](docs/09-userland-environment.md) | Userland Runtime, Applications & Concurrency | Static `musl-gcc`, `/bin/init` supervisor, standalone ELFs, `tui.h` ANSI library, `synch.h` concurrency. |
 | [**10 - Specification Testing & QEMU**](docs/10-testing-and-qemu.md) | Specification-Driven Testing & QEMU Harness | Ring 0 `ktest` unit tests, Ring 3 POSIX specification suites, headless QEMU TCP serial test runner. |
 | [**11 - Extending BangOS**](docs/11-extending-bangos.md) | Extending BangOS Developer Guide | Step-by-step developer tutorial for adding new syscalls, drivers, userland tools, and test suites. |
+| [**12 - ATA / IDE Storage Driver**](docs/12-ata-storage-driver.md) | ATA / IDE Storage Driver Architecture | Port I/O register maps, PIO mode, LBA28/48, sector read/write protocols, block device abstraction. |
+| [**13 - VFS & ext2 Filesystem**](docs/13-vfs-and-ext2.md) | Virtual File System & ext2 Filesystem Engine | Superblock, block groups, inodes, direct/indirect mapping, directory records, and POSIX syscall mappings. |
 
 ---
 
@@ -78,10 +85,11 @@ Available Standalone Applications (Multi-ELF Ramdisk):
   [3] CPU FPU/SSE & Timer Benchmark  (execve /bin/bench)
   [4] Preemptive Multitasking Tasks  (execve /bin/tasks)
   [5] Multithreading & Mutex Sync    (execve /bin/threads)
-  [6] Run Specification Test Suites  (execve /bin/test_*)
-  [7] Shutdown / Halt System         (exit)
+  [6] Disk Explorer & Storage Mgr    (execve /bin/disktool)
+  [7] Run Specification Test Suites  (execve /bin/test_*)
+  [8] Shutdown / Halt System         (exit)
 
-Select an option [1-7]: 
+Select an option [1-8]: 
 ```
 
 ---
@@ -205,7 +213,7 @@ BangOS/
 - [x] Multithreading (`CLONE_VM`), Thread Local Storage (`FS_BASE`), and `SYS_FUTEX`
 - [x] Standalone Multi-ELF Userland Suite & POSIX Specification Test Harness
 - [x] Two-Tier Automated Verification Architecture (Ring 0 `ktest` + Ring 3 POSIX)
-- [ ] ATA / AHCI Storage Drive Driver & FAT32/ext2 Filesystem
+- [x] ATA / IDE Storage Drive Driver, VFS Multi-Mount & ext2 Filesystem Engine
 - [ ] VirtIO Network Driver & Lightweight TCP/IP Stack
 
 ---

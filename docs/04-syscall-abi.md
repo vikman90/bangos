@@ -137,10 +137,14 @@ syscall_entry:
 
 | Syscall # | Constant | Arguments | Return / Behavior |
 | :---: | :--- | :--- | :--- |
-| **`0`** | `SYS_READ` | `int fd, char *buf, size_t count` | Reads characters from UART serial console / keyboard. Returns `-EBADF` (-9) or `-EFAULT` (-14) on invalid buffers. |
-| **`1`** | `SYS_WRITE` | `int fd, const char *buf, size_t count` | Transmits characters to UART COM1 serial port. Returns bytes written. |
+| **`0`** | `SYS_READ` | `int fd, char *buf, size_t count` | Reads from UART (fd 0) or VFS file descriptors (fd >= 3). Returns bytes read, `-EBADF` (-9), or `-EFAULT` (-14). |
+| **`1`** | `SYS_WRITE` | `int fd, const char *buf, size_t count` | Writes to UART (fd 1,2) or VFS files (fd >= 3). Returns bytes written. |
+| **`2`** | `SYS_OPEN` | `const char *path, int flags, int mode` | Opens or creates file node via VFS; allocates new file descriptor (fd >= 3). |
+| **`3`** | `SYS_CLOSE` | `int fd` | Closes open file descriptor and releases VFS node reference. |
+| **`4`** | `SYS_STAT` | `const char *path, struct stat *statbuf` | Populates file size, permissions, and mode for given pathname. |
+| **`5`** | `SYS_FSTAT` | `int fd, struct stat *statbuf` | Populates file metadata for open file descriptor. |
 | **`7`** | `SYS_POLL` | `struct pollfd *fds, nfds_t nfds, int timeout` | Non-blocking poll; returns `1` (I/O ready). |
-| **`8`** | `SYS_LSEEK` | `int fd, off_t offset, int whence` | Returns `-ESPIPE` (-29) for non-seekable serial streams. |
+| **`8`** | `SYS_LSEEK` | `int fd, off_t offset, int whence` | Repositions file read/write offset (`SEEK_SET`, `SEEK_CUR`, `SEEK_END`). |
 | **`9`** | `SYS_MMAP` | `void *addr, size_t len, int prot, int flags, int fd, off_t off` | Allocates a Virtual Memory Area (VMA) and memory pages dynamically. |
 | **`10`** | `SYS_MPROTECT` | `void *addr, size_t len, int prot` | Modifies VMA permissions and updates hardware page table entry flags. |
 | **`11`** | `SYS_MUNMAP` | `void *addr, size_t len` | Releases virtual memory range, reclaims physical frames, and trims VMAs. |
@@ -163,7 +167,10 @@ syscall_entry:
 | **`158`** | `SYS_ARCH_PRCTL` | `int code, unsigned long addr` | Sets Thread Local Storage (TLS) by updating `MSR_FS_BASE` (`0xC0000100`). |
 | **`186`** | `SYS_GETTID` | *none* | Returns thread ID (`proc->pid`). |
 | **`202`** | `SYS_FUTEX` | `uint32_t *uaddr, int op, uint32_t val, ...` | Fast user-space sleeping and waking synchronization primitive (`FUTEX_WAIT`, `FUTEX_WAKE`). |
+| **`217`** | `SYS_GETDENTS64` | `int fd, struct linux_dirent64 *dirp, size_t count` | Enumerates directory entries from open directory file descriptors. |
 | **`218`** | `SYS_SET_TID_ADDRESS`| `int *tidptr` | Registers thread clear address upon exit; returns thread TID. |
 | **`228`** | `SYS_CLOCK_GETTIME`| `clockid_t clk_id, struct timespec *tp` | Returns monotonic and realtime timestamps with nanosecond precision. |
 | **`231`** | `SYS_EXIT_GROUP` | `int status` | Terminates process or cleanly halts machine if PID 1. |
+| **`257`** | `SYS_OPENAT` | `int dirfd, const char *path, int flags, int mode` | Relative / absolute file open via VFS. |
+| **`262`** | `SYS_NEWFSTATAT` | `int dirfd, const char *path, struct stat *statbuf, int flags` | Relative / absolute stat via VFS. |
 | **Default** | *Unhandled* | *any* | Evaluates to `-ENOSYS` (-38). |

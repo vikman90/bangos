@@ -141,3 +141,17 @@ To enable deterministic, headless testing in CI pipelines and clean system shutd
        outw(0x604, 0x2000);
    }
    ```
+
+---
+
+## 💾 ATA / IDE PIO Storage Driver (`kernel/drivers/ata.c`)
+
+BangOS supports standard ATA/IDE disk drives operating in PIO mode across Primary (`0x1F0`) and Secondary (`0x170`) channels.
+
+### Features:
+- **Port Probing & Identification**: Issues `0xEC` (`IDENTIFY`), decodes model string, serial numbers, sector capacity, and checks for LBA48 support.
+- **LBA28 / LBA48 Sector I/O**: Performs 16-bit word transfers via `0x1F0` with hardware status busy-wait and DRQ polling.
+- **Block Device Layer (`kernel/drivers/block.c`)**: Exposes registered drives (`/dev/ata0`, `/dev/ata1`) as abstract `block_dev_t` devices to the VFS and filesystems.
+
+For detailed hardware register maps and I/O diagrams, see [**Chapter 12 - ATA Storage Driver**](12-ata-storage-driver.md).
+
