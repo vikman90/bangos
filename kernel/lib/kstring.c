@@ -39,6 +39,40 @@ char *kstrncpy(char *dst, const char *src, size_t n) {
     return dst;
 }
 
+char *kstrstr(const char *haystack, const char *needle) {
+    if (!haystack || !needle) return NULL;
+    if (*needle == '\0') return (char *)haystack;
+
+    size_t nlen = kstrlen(needle);
+    while (*haystack) {
+        if (kstrncmp(haystack, needle, nlen) == 0) {
+            return (char *)haystack;
+        }
+        haystack++;
+    }
+    return NULL;
+}
+
+char *kstrchr(const char *s, int c) {
+    if (!s) return NULL;
+    while (*s) {
+        if (*s == (char)c) return (char *)s;
+        s++;
+    }
+    return (c == 0) ? (char *)s : NULL;
+}
+
+char *kstrrchr(const char *s, int c) {
+    if (!s) return NULL;
+    const char *last = NULL;
+    while (*s) {
+        if (*s == (char)c) last = s;
+        s++;
+    }
+    if (c == 0) return (char *)s;
+    return (char *)last;
+}
+
 void *kmemset(void *s, int c, size_t n) {
     unsigned char *p = (unsigned char *)s;
     for (size_t i = 0; i < n; i++) {

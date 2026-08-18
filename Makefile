@@ -35,7 +35,14 @@ DOCKER_IMAGE ?= bangos-builder
 
 .PHONY: all userland esp run-qemu test clean docker-image docker-build docker-test docker-shell docs-build docs-serve
 
-all: userland esp
+DISK_IMG = $(BUILD_DIR)/disk.img
+DISK_ROOT = userland/disk_root
+
+$(DISK_IMG): $(shell find $(DISK_ROOT) -type f 2>/dev/null) | $(BUILD_DIR)
+	dd if=/dev/zero of=$@ bs=1M count=32 status=none
+	/usr/sbin/mke2fs -q -F -t ext2 -b 1024 -d $(DISK_ROOT) $@ 32M
+
+all: userland esp $(DISK_IMG)
 
 userland:
 	$(MAKE) -C userland
@@ -68,12 +75,12 @@ $(EFI_TARGET): $(EFI_SO) | $(ESP_DIR)
 esp: userland $(EFI_TARGET)
 	cp userland/initrd.tar $(ESP_DIR)/initrd.tar
 
-run-qemu: esp
-	qemu-system-x86_64 -m 512M -bios $(OVMF_PATH) -drive file=fat:rw:$(ESP_DIR),format=raw -serial stdio -nographic -net none -monitor none
+run-qemu: esp $(DISK_IMG)
+	qemu-system-x86_64 -m 512M -bios $(OVMF_PATH) -drive file=fat:rw:$(ESP_DIR),format=raw -drive file=$(DISK_IMG),format=raw,index=1,media=disk -serial stdio -nographic -net none -monitor none
 
 TEST_TIMEOUT ?= 180
 
-test: esp
+test: esp $(DISK_IMG)
 	chmod +x scripts/run_qemu_test.sh && OVMF_PATH="$(OVMF_PATH)" TEST_TIMEOUT="$(TEST_TIMEOUT)" ./scripts/run_qemu_test.sh
 
 clean:

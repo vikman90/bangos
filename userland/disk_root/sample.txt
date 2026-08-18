@@ -1,0 +1,7 @@
+Ext2 Filesystem Layout in BangOS:
+----------------------------------
+1. Superblock: Located at offset 1024 bytes (Magic: 0xEF53).
+2. Block Group Descriptors: Describes block bitmaps, inode bitmaps, and inode tables.
+3. Inode Table: Inode 2 is the root directory ('/').
+4. Direct Blocks: i_block[0..11] (up to 12 KB).
+5. Indirect Blocks: i_block[12] (single indirect), i_block[13] (double indirect).
