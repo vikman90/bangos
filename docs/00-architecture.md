@@ -134,6 +134,7 @@ BangOS maps physical memory into a predictable virtual layout:
 ## 🔗 Next Steps & Documentation Guides
 
 For in-depth explanations of individual subsystems, proceed to the subsequent guides:
+
 - [**01 - UEFI Bootloading & Firmware Handoff**](01-uefi-bootloading.md)
 - [**02 - Segmentation, GDT, TSS & Exception Architecture**](02-gdt-idt-tss.md)
 - [**03 - 4-Level Paging, Frame Allocation & Virtual Memory Manager**](03-paging-and-memory.md)

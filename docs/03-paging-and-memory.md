@@ -1,6 +1,7 @@
 # 03 - 4-Level Paging, Frame Allocation & Virtual Memory Manager
 
 In the x86_64 architecture, paging is mandatory in Long Mode. BangOS implements a complete virtual memory subsystem comprising:
+
 1. **4-Level Paging Hierarchy** (PML4 -> PDPT -> PD -> PT) with a 4 GB identity-mapped kernel region.
 2. **Bitmap-Based Physical Memory Manager (PMM)** allocating 4 KB frames.
 3. **Dynamic Page Mapper & 2MB Huge-Page Splitting**.
@@ -35,6 +36,7 @@ size_t pt_idx   = (virt >> 12) & 0x1FF; // Bits 12..20
 ```
 
 ### Hardware Page Table Entry (PTE) Flags:
+
 - **`PAGE_PRESENT` (`1 << 0`)**: Page is present in physical memory.
 - **`PAGE_WRITABLE` (`1 << 1`)**: Read/write access allowed (if cleared, read-only).
 - **`PAGE_USER` (`1 << 2`)**: Userland (Ring 3) access allowed (if cleared, supervisor only).
@@ -45,6 +47,7 @@ size_t pt_idx   = (virt >> 12) & 0x1FF; // Bits 12..20
 ## 🔒 4GB Kernel Identity Mapping (`kernel/mm/memory.c`)
 
 During early boot (`mm_init()`), BangOS allocates a dedicated PML4 and constructs a permanent identity mapping:
+
 - **Range**: `0x0000000000000000` to `0x00000000FFFFFFFF` (First 4 GB of RAM).
 - **Implementation**: 4 Page Directory entries in PDPT, each populated with 512 2MB huge pages (`PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER | (1ULL << 7)`).
 - **CR3 Load**: The physical address of `kernel_pml4` is loaded into CPU control register `%cr3`:
@@ -59,6 +62,7 @@ This identity mapping ensures that the kernel, UEFI structures, ACPI tables, vid
 ## 🛠️ Bitmap Physical Memory Manager (PMM)
 
 BangOS manages physical RAM using a bitmap allocator:
+
 - **Physical Pool**: 128 MB managed pool (`MAX_PAGES = 32,768` 4KB pages) starting at physical base `0x2000000` (32 MB).
 - **Allocation Operations**:
   - `alloc_page()`: Finds a free bit in the bitmap, marks it used, zero-initializes the 4096-byte frame, and returns its physical address.
@@ -71,6 +75,7 @@ BangOS manages physical RAM using a bitmap allocator:
 ## 🌐 Dynamic User Page Mapper & 2MB Huge-Page Splitting
 
 When user applications request arbitrary 4KB virtual addresses (for ELF code, stack, or heap), `map_page()` dynamically traverses the page table hierarchy:
+
 1. Allocates missing PDPT, PD, or PT levels on-demand.
 2. **Huge-Page Splitting**: If a 2MB huge page occupies the target Page Directory slot, `map_page()` transparently allocates a new 4KB Page Table (PT), maps 512 individual 4KB frames covering the 2MB region to preserve existing memory contents, and replaces the 2MB huge entry.
 3. Updates the target PTE with the requested flags (`PAGE_PRESENT | PAGE_USER | PAGE_WRITABLE`).
@@ -93,6 +98,7 @@ typedef struct vm_area {
 ```
 
 ### VMA Subsystem Functions:
+
 - `vmm_init_process(proc)`: Initializes process VMAs and assigns a unique 4GB per-process virtual address space base (`0x4000000000 + PID * 4GB`).
 - `vma_create(proc, start, end, prot, flags)`: Registers a new virtual region, automatically coalescing adjacent contiguous regions with identical permissions.
 - `vma_find(proc, addr)`: Finds the VMA enclosing a virtual address.

@@ -16,6 +16,7 @@ In standard PC/AT and x86_64 IBM-compatible architectures, two legacy IDE channe
 | **Secondary (ATA 2/3)** | `0x170` - `0x177` | `0x376` | IRQ 15 |
 
 Each IDE channel supports up to **two drives**:
+
 - **Drive 0 (Master)**
 - **Drive 1 (Slave)**
 
@@ -55,6 +56,7 @@ Older disks addressed sectors using Cylinder-Head-Sector (CHS). BangOS exclusive
 
 ### 2.1 LBA28 Addressing Format (Up to 128 GB)
 In LBA28:
+
 - `LBA_LO` holds `LBA[7:0]`
 - `LBA_MID` holds `LBA[15:8]`
 - `LBA_HI` holds `LBA[23:16]`
@@ -94,6 +96,7 @@ flowchart TD
 
 ### ATA Identify Structure Parsing
 The identify payload contains 512 bytes:
+
 - **Words 10-19**: Serial Number (20 ASCII characters, byte-swapped).
 - **Words 27-46**: Model String (40 ASCII characters, byte-swapped).
 - **Words 60-61**: Total 28-bit LBA sector count.

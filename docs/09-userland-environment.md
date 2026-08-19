@@ -26,6 +26,7 @@ initrd.tar: $(TARGETS)
 ## 👑 Supervisor Process: `/bin/init` (PID 1) (`userland/src/init.c`)
 
 When the kernel finishes early initialization, it loads and jumps into `/bin/init` as the root supervisor process:
+
 1. **System Banner**: Invokes `uname()` and `sysinfo()` to display kernel version, memory metrics, and uptime.
 2. **Interactive Launcher**: Provides a menu to launch standalone binaries via `fork()` + `execve()` + `waitpid()`:
 
@@ -53,7 +54,7 @@ static int launch_program(const char *path, const char *name) {
 
 ```text
 ======================================================================
-        BangOS (x86_64) - Bare Metal Kernel v0.3.0        
+        BangOS (x86_64) - Bare Metal Kernel v0.3.0
      PID: 1 (init) | RAM: 128 MB Total (126 MB Free) | Uptime: 0 s
 ======================================================================
 
@@ -69,7 +70,7 @@ Available Standalone Applications (Multi-ELF Ramdisk):
   [8] Network Fetch & HTTP Client    (execve /bin/netfetch)
   [9] Shutdown / Halt System         (exit)
 
-Select an option [1-9]: 
+Select an option [1-9]:
 ```
 
 ### 1. `/bin/calc` (Geometric Calculator)
@@ -80,6 +81,7 @@ Queries and displays system metrics via `uname()` and `sysinfo()` system calls (
 
 ### 3. `/bin/bench` (Subsystem Benchmark Suite)
 Evaluates CPU and kernel memory performance across 4 automated benchmarks:
+
 - **FPU/SSE Math**: Calculates Leibniz Pi over 2,000,000 iterations measuring Mops/s throughput.
 - **Dynamic Heap Memory**: Executes 1,000 `malloc()` / `free()` cycles over `brk()` and `mmap()`.
 - **Demand Paging & VMM**: Allocates 4 MB anonymous memory via `mmap()`, touches 1,024 4KB pages to trigger on-demand `#PF` faults, verifies memory integrity, tests `mprotect()`, and unmaps via `munmap()`.
@@ -90,6 +92,7 @@ Demonstrates preemptive Round-Robin multitasking by spawning background computat
 
 ### 5. `/bin/threads` (Multithreading & Synchronization Suite)
 Demonstrates kernel thread creation (`CLONE_VM`) and synchronization primitives:
+
 - **Race Condition Demo**: Unsynchronized concurrent increments exhibiting data races from preemptive timer interrupts.
 - **Mutex Synchronization**: Atomic CAS + Futex mutex protecting shared data structures with 100% consistency.
 - **Producer-Consumer Queue Pipeline**: Bounded buffer managed with Counting Semaphores and Mutexes.
@@ -99,6 +102,7 @@ Provides an interactive TUI for inspecting ATA storage drives, viewing ext2 supe
 
 ### 7. `/bin/netfetch` (Network Diagnostics & HTTP/1.1 Web Client)
 Interactive networking suite with options to:
+
 - Probe VirtIO-Net MAC address, IP settings, and gateway configuration.
 - Send ICMP Echo ping requests to the default gateway (`10.0.2.2`).
 - Perform RFC 1035 UDP DNS hostname queries against the nameserver (`10.0.2.3:53`).

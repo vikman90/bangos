@@ -49,6 +49,7 @@ Before configuring the VirtIO network adapter, the kernel must locate it on the 
 
 ### 2.1 PCI Configuration Mechanism #1
 x86 architectures allocate two 32-bit I/O ports for accessing PCI configuration registers:
+
 * **`0xCF8` (`PCI_CONFIG_ADDRESS`)**: Specifies the Target Bus (0–255), Device (0–31), Function (0–7), and Register Offset (0–255).
 * **`0xCFC` (`PCI_CONFIG_DATA`)**: Reads or writes the 32-bit value at the address specified by `0xCF8`.
 
@@ -76,6 +77,7 @@ uint32_t pci_read_config_32(uint8_t bus, uint8_t dev, uint8_t func, uint8_t offs
 ```
 
 When scanning, BangOS targets the **Legacy VirtIO Network Controller**:
+
 * **Vendor ID**: `0x1AF4` (Red Hat / QEMU VirtIO)
 * **Device ID**: `0x1000` (VirtIO Network Device)
 
@@ -110,6 +112,7 @@ The legacy VirtIO network interface is controlled through standard I/O port regi
 
 ### Device Initialization Handshake
 Per the VirtIO specification, initialization follows a strict state transition:
+
 1. Write `0` to `DEVICE_STATUS` (Device Reset).
 2. Set `VIRTIO_STATUS_ACKNOWLEDGE` (1): Guest detected device.
 3. Set `VIRTIO_STATUS_DRIVER` (2): Guest knows how to drive device.
@@ -161,6 +164,7 @@ classDiagram
 
 ### 4.1 Descriptor Table (`vring_desc`)
 Each descriptor points to a contiguous buffer in physical memory:
+
 * `addr`: 64-bit physical memory address.
 * `len`: 32-bit buffer length.
 * `flags`:
@@ -170,10 +174,12 @@ Each descriptor points to a contiguous buffer in physical memory:
 
 ### 4.2 Available Ring (`vring_avail`)
 Populated by the **Driver** to offer buffers to the device:
+
 * `idx`: Incremented every time the driver adds an entry to `ring[]`.
 
 ### 4.3 Used Ring (`vring_used`)
 Populated by the **Device (Hypervisor)** when it finishes consuming buffers:
+
 * `idx`: Incremented by the hypervisor upon packet reception or transmission completion.
 
 ---
@@ -196,6 +202,7 @@ typedef struct {
 
 ### 5.2 Receive Path (RX Ring Population)
 During initialization, the driver populates 16 RX buffers into Virtqueue 0:
+
 1. Each descriptor points to `rx_buffer[i]` (1526 bytes = 10-byte VirtIO header + 1514-byte Ethernet frame).
 2. Sets `flags = VRING_DESC_F_WRITE` so QEMU can write incoming packets.
 3. Adds descriptor index to `avail->ring[]` and updates `avail->idx`.
@@ -227,6 +234,7 @@ int virtio_net_poll(uint8_t *out_buf, size_t max_len) {
 
 ### 5.3 Transmit Path (TX Ring)
 To send a packet:
+
 1. Copy Ethernet frame into `tx_buffer` immediately after a zeroed `virtio_net_hdr_t`.
 2. Assign descriptor 0 of Virtqueue 1 to point to `tx_buffer`.
 3. Put descriptor 0 in `tx_queue.avail->ring[]` and increment `avail->idx`.
@@ -238,5 +246,6 @@ To send a packet:
 ## 6. Verification and Diagnostics
 
 VirtIO network functionality is verified at boot time and in userland:
+
 * **Ring 0 Unit Test (`kernel/tests/test_net.c`)**: Confirms PCI device detection, MAC address retrieval, and loopback framing.
 * **Userland Diagnostic (`/bin/netfetch`)**: Option 1 inspects the detected MAC address and link state.

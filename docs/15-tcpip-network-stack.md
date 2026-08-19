@@ -52,6 +52,7 @@ sequenceDiagram
 
 #### Dynamic ARP Cache Table (`kernel/net/arp.c`)
 BangOS maintains an internal ARP cache mapping 32-bit IPv4 addresses to 6-byte MAC addresses with hardware TSC timestamps. When `arp_resolve()` is called:
+
 1. It queries the cache for the target IP.
 2. If absent, it broadcasts an ARP Request (`ARP_OP_REQUEST`) and polls `net_poll()` until an ARP Reply is received.
 3. Automatically maps known QEMU SLIRP static routes (`10.0.2.2` -> `52:55:0a:00:02:02`).
@@ -81,6 +82,7 @@ The standard 20-byte IPv4 header (RFC 791) provides logical host addressing:
 
 ### 3.2 Routing Decision Logic
 When sending an IPv4 packet:
+
 * If `(dst_ip & subnet_mask) == (guest_ip & subnet_mask)`, the destination is on the **local subnet**. The target for ARP resolution is `dst_ip`.
 * If the destination is outside the subnet (e.g. `93.184.216.34`), the packet must be routed through the **Default Gateway** (`10.0.2.2`). The target for ARP resolution is `gateway_ip`.
 
@@ -125,6 +127,7 @@ Internet Control Message Protocol (ICMP, RFC 792) provides network diagnostics a
 
 ### 5.1 User Datagram Protocol (UDP)
 UDP (RFC 768) provides a lightweight, connectionless datagram transport. In `kernel/net/udp.c`, BangOS demultiplexes incoming UDP packets based on the 16-bit Destination Port:
+
 * Port 53: Dispatched to the DNS subsystem (`dns_receive`).
 * Registered socket ports: Dispatched to active UDP socket receive queues.
 
@@ -174,6 +177,7 @@ stateDiagram-v2
 ```
 
 ### 6.2 The TCP 3-Way Handshake
+
 1. **Client -> Server (`SYN`)**:
    * BangOS allocates an Initial Sequence Number (`seq = 1000`).
    * Sends TCP segment with `TCP_FLAG_SYN`.
@@ -187,6 +191,7 @@ stateDiagram-v2
 
 ### 6.3 Sliding Window & Stream Receive Buffer
 Each `tcp_socket_t` contains a 4096-byte circular ring buffer (`rx_buf`). When data segments arrive:
+
 1. `tcp_receive()` verifies that segment sequence numbers match `sock->ack_num`.
 2. The payload is copied into `rx_buf`.
 3. `sock->ack_num` is advanced by the payload length.
@@ -197,6 +202,7 @@ Each `tcp_socket_t` contains a 4096-byte circular ring buffer (`rx_buf`). When d
 ## 7. Subsystem Verification
 
 The TCP/IP stack is validated through Ring 0 self-tests and userland integration suites:
+
 * **Checksum Verification**: Validates 16-bit one's complement Internet checksum calculation against RFC test vectors.
 * **ARP Resolution**: Validates dynamic cache population and MAC lookup.
 * **TCP Stream Verification**: Tests sequence number advancement and sliding window ring buffer operations.

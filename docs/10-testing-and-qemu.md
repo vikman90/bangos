@@ -80,6 +80,7 @@ qemu-system-x86_64 \
 ```
 
 ### Deterministic State Machine Sequence:
+
 1. **Connect**: Connects over TCP socket to serial port `4444`.
 2. **Step 1**: Launches `/bin/sysinfo` (Option 2) and asserts hardware metrics.
 3. **Step 2**: Launches `/bin/bench` (Option 3) and asserts FPU/SSE Pi calculation.

@@ -1,6 +1,7 @@
 # 07 - FPU & SIMD / SSE Floating-Point Support
 
 Modern 64-bit standard C libraries (`musl`, `glibc`) rely heavily on SIMD/SSE vector registers (`%xmm0` .. `%xmm15`) and hardware instructions (`sqrtsd`, `addsd`, `mulsd`, `movaps`) for:
+
 - Basic floating-point calculations (`sqrt()`, `pow()`, trigonometry).
 - String and memory formatting (`printf("%.2f")`, `scanf("%lf")`).
 - Vectorized standard library optimizations.
@@ -12,6 +13,7 @@ Modern 64-bit standard C libraries (`musl`, `glibc`) rely heavily on SIMD/SSE ve
 Upon exiting UEFI boot services (`ExitBootServices`), the firmware leaves the CPU control registers in a state where SSE extensions are disabled for 64-bit execution.
 
 If an application attempts to execute an SSE instruction (such as `sqrtsd`) while SSE support is disabled:
+
 - The CPU encounters an unhandled opcode and triggers an **Invalid Opcode Exception (#UD, Vector 6)**.
 - If `CR0.TS` (Task Switched) is set without clearing, the CPU triggers a **Device Not Available Exception (#NM, Vector 7)**.
 
@@ -43,6 +45,7 @@ static void fpu_sse_init(void) {
 ```
 
 ### Control Flags Explanation:
+
 * **`CR0.EM` (Bit 2 - Emulation)**: When cleared, forces CPU to execute math instructions on physical silicon instead of trapping to software emulation handlers.
 * **`CR0.MP` (Bit 1 - Monitor Coprocessor)**: Controls interaction with `WAIT`/`FWAIT` instructions.
 * **`CR0.TS` (Bit 3 - Task Switched)**: When cleared, allows immediate FPU/SSE execution without generating `#NM` faults.

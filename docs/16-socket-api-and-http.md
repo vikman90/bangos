@@ -32,6 +32,7 @@ flowchart TD
 
 ### 1.1 Socket VFS Operations (`kernel/net/socket.c`)
 To enable standard POSIX file operations (`read`, `write`, `close`, `poll`) on network connections:
+
 * `socket_vfs_read()`: Delegates to `tcp_recv()` for stream sockets or reads from the UDP packet queue.
 * `socket_vfs_write()`: Delegates to `tcp_send()` for stream sockets or transmits via `udp_send()`.
 * `socket_vfs_close()`: Gracefully tears down TCP connections (`tcp_close()`), frees internal ring buffers, and reclaims file descriptor indices.
@@ -131,10 +132,12 @@ flowchart TD
 
 ### 4.1 Recommended Embedded TLS Libraries
 For educational or resource-constrained operating systems like BangOS:
+
 1. **BearSSL**: An exceptionally small (approx. 50 KB binary size), high-performance TLS 1.2 implementation written in clean C with zero dynamic memory allocation requirements.
 2. **mbedTLS**: Modular, well-documented C library for TLS, cryptography, and X.509 certificate validation.
 
 ### 4.2 How a TLS Handshake Operates over Sockets
+
 1. **Standard TCP Connection**: The application creates a regular socket (`socket(AF_INET, SOCK_STREAM, 0)`) and connects to port 443 (`connect()`).
 2. **TLS Context Initialization**: The application initializes a TLS client context and attaches custom I/O callbacks:
    ```c
