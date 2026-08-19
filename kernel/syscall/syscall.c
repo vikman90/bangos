@@ -538,7 +538,7 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             kmemset(u, 0, sizeof(struct utsname));
             kstrncpy(u->sysname, "BangOS", sizeof(u->sysname));
             kstrncpy(u->nodename, "bangos", sizeof(u->nodename));
-            kstrncpy(u->release, "0.2.0", sizeof(u->release));
+            kstrncpy(u->release, "0.3.0", sizeof(u->release));
             kstrncpy(u->version, "#1 SMP Bare-Metal x86_64 UEFI", sizeof(u->version));
             kstrncpy(u->machine, "x86_64", sizeof(u->machine));
             kstrncpy(u->domainname, "local", sizeof(u->domainname));
