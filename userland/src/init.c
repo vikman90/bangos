@@ -33,8 +33,9 @@ static void show_menu(void) {
     printf("  " ANSI_BOLD ANSI_GREEN "[5]" ANSI_RESET " Multithreading & Mutex Sync    (execve /bin/threads)\n");
     printf("  " ANSI_BOLD ANSI_GREEN "[6]" ANSI_RESET " Disk Explorer & Storage Mgr    (execve /bin/disktool)\n");
     printf("  " ANSI_BOLD ANSI_GREEN "[7]" ANSI_RESET " Run Specification Test Suites  (execve /bin/test_*)\n");
-    printf("  " ANSI_BOLD ANSI_RED   "[8]" ANSI_RESET " Shutdown / Halt System         (exit)\n\n");
-    printf(ANSI_BOLD ANSI_YELLOW "Select an option [1-8]: " ANSI_RESET);
+    printf("  " ANSI_BOLD ANSI_GREEN "[8]" ANSI_RESET " Network Fetch & HTTP Client    (execve /bin/netfetch)\n");
+    printf("  " ANSI_BOLD ANSI_RED   "[9]" ANSI_RESET " Shutdown / Halt System         (exit)\n\n");
+    printf(ANSI_BOLD ANSI_YELLOW "Select an option [1-9]: " ANSI_RESET);
     fflush(stdout);
 }
 
@@ -90,13 +91,16 @@ int main(int argc, char **argv) {
             launch_program("/bin/test_vmm_demand", "test_vmm_demand");
             launch_program("/bin/test_process_lifecycle", "test_process_lifecycle");
             launch_program("/bin/test_ext2_vfs", "test_ext2_vfs");
+            launch_program("/bin/test_net_sockets", "test_net_sockets");
             tui_pause();
-        } else if (strcmp(line, "8") == 0 || strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
+        } else if (strcmp(line, "8") == 0 || strcmp(line, "netfetch") == 0 || strcmp(line, "net") == 0) {
+            launch_program("/bin/netfetch", "netfetch");
+        } else if (strcmp(line, "9") == 0 || strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
             printf("\n" ANSI_BOLD ANSI_RED "Shutting down BangOS system cleanly..." ANSI_RESET "\n");
             fflush(stdout);
             exit(0);
         } else if (strlen(line) > 0) {
-            printf(ANSI_RED "Invalid selection '%s'. Please choose an option between 1 and 8.\n" ANSI_RESET, line);
+            printf(ANSI_RED "Invalid selection '%s'. Please choose an option between 1 and 9.\n" ANSI_RESET, line);
             tui_pause();
         }
     }
