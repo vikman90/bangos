@@ -24,7 +24,7 @@ flowchart TD
         Driver["VirtIO-Net Driver (kernel/drivers/virtio_net.c)"]
         PCI["PCI Enumerator (kernel/drivers/pci.c)"]
         
-        Sockets -->|syscall| Syscall
+        Sockets -->|"syscall"| Syscall
         Syscall --> TCPIP
         TCPIP --> Driver
         Driver --> PCI
@@ -35,9 +35,9 @@ flowchart TD
         SLIRP["QEMU SLIRP User Networking (NAT/DHCP/DNS)"]
         WAN["Public Internet / Host Network"]
         
-        Driver <-->|Virtqueues (RX/TX Rings)| NIC
-        NIC <--> SLIRP
-        SLIRP <--> WAN
+        Driver ---|"Virtqueues (RX/TX Rings)"| NIC
+        NIC --- SLIRP
+        SLIRP --- WAN
     end
 ```
 
@@ -144,7 +144,7 @@ classDiagram
     class vring_avail {
         +uint16_t flags
         +uint16_t idx
-        +uint16_t ring[queue_size]
+        +uint16_t[] ring
     }
     class vring_used_elem {
         +uint32_t id
@@ -153,7 +153,7 @@ classDiagram
     class vring_used {
         +uint16_t flags
         +uint16_t idx
-        +vring_used_elem ring[queue_size]
+        +vring_used_elem[] ring
     }
     vring_avail ..> vring_desc : points to
     vring_used ..> vring_desc : reports completed

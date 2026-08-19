@@ -9,14 +9,14 @@ This document details the software architecture, on-disk geometry math, POSIX sy
 The BangOS VFS provides a unified, hierarchical abstraction over disparate storage mechanisms, including in-memory TarFS ramdisks and on-disk ext2 volumes.
 
 ```mermaid
-graph TD
-    Userland[Userland POSIX Application /bin/disktool] -->|open, read, write, stat, close| Syscall[Syscall Dispatch Layer]
-    Syscall -->|fd_table[fd] -> file_desc_t| VFS[Virtual File System VFS Core]
-    VFS -->|vfs_lookup / vfs_mount| Mounts[Mount Table / & /mnt/ext2]
-    Mounts -->|vfs_ops_t: tarfs_ops| TarFS[In-Memory Ramdisk TarFS]
-    Mounts -->|vfs_ops_t: ext2_ops| ext2[ext2 Filesystem Driver]
-    ext2 -->|block_dev_t read/write_blocks| BlockDev[Block Device Abstraction]
-    BlockDev -->|ATA PIO inw/outw| ATADriver[ATA / IDE Storage Driver]
+flowchart TD
+    Userland["Userland POSIX Application (/bin/disktool)"] -->|"open, read, write, stat, close"| Syscall["Syscall Dispatch Layer"]
+    Syscall -->|"fd_table[fd] -> file_desc_t"| VFS["Virtual File System (VFS Core)"]
+    VFS -->|"vfs_lookup / vfs_mount"| Mounts["Mount Table (/ & /mnt/ext2)"]
+    Mounts -->|"vfs_ops_t: tarfs_ops"| TarFS["In-Memory Ramdisk (TarFS)"]
+    Mounts -->|"vfs_ops_t: ext2_ops"| ext2["ext2 Filesystem Driver"]
+    ext2 -->|"block_dev_t read/write_blocks"| BlockDev["Block Device Abstraction"]
+    BlockDev -->|"ATA PIO inw/outw"| ATADriver["ATA / IDE Storage Driver"]
 ```
 
 ### 1.1 Process File Descriptor Table
@@ -92,10 +92,18 @@ i_block[14]     : Triple Indirect Pointer
 ```
 
 ```mermaid
-graph TD
-    Inode[ext2_inode_t] --> Direct[i_block 0..11] --> DBlk[Data Blocks 0..11]
-    Inode --> SInd[i_block 12 Single Indirect] --> SIndBlk[Indirect Block Table] --> DBlk2[Data Blocks 12..267]
-    Inode --> DInd[i_block 13 Double Indirect] --> DIndBlk[Double Indirect Table] --> SIndBlk2[Indirect Tables] --> DBlk3[Data Blocks 268..]
+flowchart TD
+    Inode["ext2_inode_t"] --> Direct["i_block 0..11"]
+    Direct --> DBlk["Data Blocks 0..11"]
+    
+    Inode --> SInd["i_block 12 (Single Indirect)"]
+    SInd --> SIndBlk["Indirect Block Table"]
+    SIndBlk --> DBlk2["Data Blocks 12..267"]
+    
+    Inode --> DInd["i_block 13 (Double Indirect)"]
+    DInd --> DIndBlk["Double Indirect Table"]
+    DIndBlk --> SIndBlk2["Indirect Tables"]
+    SIndBlk2 --> DBlk3["Data Blocks 268.."]
 ```
 
 ### 3.2 File Offset to Physical Block Translation

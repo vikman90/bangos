@@ -42,11 +42,11 @@ Before an IPv4 packet can be sent to a destination IP on the local link, the hos
 
 ```mermaid
 sequenceDiagram
-    participant Guest as BangOS (10.0.2.15)
-    participant GW as QEMU Gateway (10.0.2.2)
+    participant Guest as "BangOS (10.0.2.15)"
+    participant GW as "QEMU Gateway (10.0.2.2)"
 
-    Guest->>GW: ARP Request (Broadcast FF:FF:FF:FF:FF:FF): "Who has 10.0.2.2? Tell 10.0.2.15"
-    GW-->>Guest: ARP Reply (Unicast 52:54:00:12:34:56): "10.0.2.2 is at 52:55:0a:00:02:02"
+    Guest->>GW: ARP Request (Broadcast): Who has 10.0.2.2? Tell 10.0.2.15
+    GW-->>Guest: ARP Reply: 10.0.2.2 is at 52:55:0a:00:02:02
     Note over Guest: Updates in-memory ARP Cache Table
 ```
 
@@ -133,15 +133,15 @@ BangOS features an in-kernel recursive DNS resolver capable of translating domai
 
 ```mermaid
 sequenceDiagram
-    participant User as /bin/netfetch
-    participant DNS as In-Kernel DNS Resolver
-    participant Server as QEMU DNS Server (10.0.2.3:53)
+    participant User as "/bin/netfetch"
+    participant DNS as "In-Kernel DNS Resolver"
+    participant Server as "QEMU DNS Server (10.0.2.3:53)"
 
     User->>DNS: dns_resolve("example.com")
-    Note over DNS: Encodes QNAME: "\x07example\x03com\x00"
+    Note over DNS: Encodes QNAME: \x07example\x03com\x00
     DNS->>Server: UDP DNS Query (TxID=0x1234, QTYPE=A, QCLASS=IN)
     Server-->>DNS: UDP DNS Response (Answer: 93.184.216.34, TTL=300)
-    Note over DNS: Parses Answer Section & extracts 32-bit IPv4
+    Note over DNS: Parses Answer Section & extracts IPv4
     DNS-->>User: returns 93.184.216.34
 ```
 

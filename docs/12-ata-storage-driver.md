@@ -78,18 +78,18 @@ During kernel initialization, `ata_init()` probes all 4 potential ATA positions:
 
 ```mermaid
 flowchart TD
-    A[Start ata_init] --> B[Select Drive on Channel]
-    B --> C[Send 400ns Delay via Alt Status]
-    C --> D[Send IDENTIFY Command 0xEC]
-    D --> E{Status == 0x00?}
-    E -- Yes --> F[No Drive Present]
-    E -- No --> G[Wait for BSY == 0]
-    G --> H{LBA_MID == 0x14 & LBA_HI == 0xEB?}
-    H -- Yes --> I[ATAPI / CD-ROM Device]
-    H -- No --> J[Wait for DRQ == 1]
-    J --> K[Read 256 Words from 0x1F0 into buffer]
-    K --> L[Parse Model, Serial, Sector Count, LBA48 support]
-    L --> M[Register Block Device with VFS/Block Layer]
+    A["Start ata_init"] --> B["Select Drive on Channel"]
+    B --> C["Send 400ns Delay via Alt Status"]
+    C --> D["Send IDENTIFY Command 0xEC"]
+    D --> E{"Status == 0x00?"}
+    E -- Yes --> F["No Drive Present"]
+    E -- No --> G["Wait for BSY == 0"]
+    G --> H{"LBA_MID == 0x14 and LBA_HI == 0xEB?"}
+    H -- Yes --> I["ATAPI / CD-ROM Device"]
+    H -- No --> J["Wait for DRQ == 1"]
+    J --> K["Read 256 Words from 0x1F0 into buffer"]
+    K --> L["Parse Model, Serial, Sector Count, LBA48 support"]
+    L --> M["Register Block Device with VFS/Block Layer"]
 ```
 
 ### ATA Identify Structure Parsing
