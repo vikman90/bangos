@@ -77,6 +77,7 @@ Comprehensive documentation explaining the theoretical concepts, hardware specif
 | [**14 - VirtIO Network Driver**](docs/14-virtio-network-driver.md) | VirtIO Network Driver & PCI Enumeration | PCI bus scanner, legacy VirtIO specification, split virtqueues, RX/TX descriptor rings, packet polling. |
 | [**15 - TCP/IP Network Stack**](docs/15-tcpip-network-stack.md) | In-Kernel TCP/IP Network Stack | Ethernet II, ARP dynamic cache, IPv4 routing, checksums, ICMP pinging, UDP, DNS, TCP 3-way handshake. |
 | [**16 - Sockets & HTTP Client**](docs/16-socket-api-and-http.md) | Socket API, HTTP/1.1 Client & TLS/HTTPS Guide | POSIX socket syscalls, VFS wrapping, `/bin/netfetch` HTTP client, and educational TLS/HTTPS layering. |
+| [**17 - Build System & Tooling**](docs/17-build-system-and-tooling.md) | Build System, Tooling & Developer Workflows | Makefile targets, QEMU interactive mode, GDB debugging, Docker containers, and MkDocs. |
 
 ---
 
@@ -186,7 +187,13 @@ BangOS/
 │   ├── 08-hardware-drivers.md
 │   ├── 09-userland-environment.md
 │   ├── 10-testing-and-qemu.md
-│   └── 11-extending-bangos.md
+│   ├── 11-extending-bangos.md
+│   ├── 12-ata-storage-driver.md
+│   ├── 13-vfs-and-ext2.md
+│   ├── 14-virtio-network-driver.md
+│   ├── 15-tcpip-network-stack.md
+│   ├── 16-socket-api-and-http.md
+│   └── 17-build-system-and-tooling.md
 ├── include/                     # Kernel header definitions
 │   ├── kernel.h                 # Boot structures and MSR macros
 │   └── uefi.h

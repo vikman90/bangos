@@ -75,5 +75,6 @@ nav:
       - "Syscall ABI": "04-syscall-abi.md"
       - "Userland Runtime": "09-userland-environment.md"
   - "Development & Testing":
-      - "Testing & QEMU": "10-testing-and-qemu.md"
+      - "Developer Guide & Tooling": "17-build-system-and-tooling.md"
+      - "Testing & QEMU Automation": "10-testing-and-qemu.md"
       - "Extending BangOS": "11-extending-bangos.md"
