@@ -20,8 +20,9 @@ cmd = [
     "-drive", "file=build/disk.img,format=raw,index=1,media=disk",
     "-serial", f"tcp:127.0.0.1:{PORT},server=on,wait=off",
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
+    "-netdev", "user,id=net0",
+    "-device", "virtio-net-pci,netdev=net0",
     "-nographic",
-    "-net", "none",
     "-monitor", "none"
 ]
 
@@ -84,9 +85,9 @@ while time.time() - start_time < TIMEOUT:
 
     now = time.time()
 
-    if state == 0 and "Select an option [1-8]:" in out_log:
+    if state == 0 and "Select an option [1-9]:" in out_log:
         time.sleep(0.3)
-        print("\n[Test Step 1/8] Spawning Standalone /bin/sysinfo via fork+execve (Option 2)...")
+        print("\n[Test Step 1/9] Spawning Standalone /bin/sysinfo via fork+execve (Option 2)...")
         sock.sendall(b"2\r\n")
         state = 1
         last_action_time = now
@@ -98,9 +99,9 @@ while time.time() - start_time < TIMEOUT:
         state = 2
         last_action_time = now
 
-    elif state == 2 and out_log.count("Select an option [1-8]:") >= 2:
+    elif state == 2 and out_log.count("Select an option [1-9]:") >= 2:
         time.sleep(0.3)
-        print("\n[Test Step 2/8] Spawning Standalone /bin/bench via fork+execve (Option 3)...")
+        print("\n[Test Step 2/9] Spawning Standalone /bin/bench via fork+execve (Option 3)...")
         sock.sendall(b"3\r\n")
         state = 3
         last_action_time = now
@@ -112,9 +113,9 @@ while time.time() - start_time < TIMEOUT:
         state = 4
         last_action_time = now
 
-    elif state == 4 and out_log.count("Select an option [1-8]:") >= 3:
+    elif state == 4 and out_log.count("Select an option [1-9]:") >= 3:
         time.sleep(0.3)
-        print("\n[Test Step 3/8] Spawning Standalone /bin/calc via fork+execve (Option 1)...")
+        print("\n[Test Step 3/9] Spawning Standalone /bin/calc via fork+execve (Option 1)...")
         sock.sendall(b"1\r\n")
         state = 5
         last_action_time = now
@@ -133,9 +134,9 @@ while time.time() - start_time < TIMEOUT:
         state = 7
         last_action_time = now
 
-    elif state == 7 and out_log.count("Select an option [1-8]:") >= 4:
+    elif state == 7 and out_log.count("Select an option [1-9]:") >= 4:
         time.sleep(0.3)
-        print("\n[Test Step 4/8] Spawning Preemptive Multitasking /bin/tasks (Option 4)...")
+        print("\n[Test Step 4/9] Spawning Preemptive Multitasking /bin/tasks (Option 4)...")
         sock.sendall(b"4\r\n")
         state = 8
         last_action_time = now
@@ -154,9 +155,9 @@ while time.time() - start_time < TIMEOUT:
         state = 10
         last_action_time = now
 
-    elif state == 10 and out_log.count("Select an option [1-8]:") >= 5:
+    elif state == 10 and out_log.count("Select an option [1-9]:") >= 5:
         time.sleep(0.3)
-        print("\n[Test Step 5/8] Spawning Multithreading & Synchronization /bin/threads (Option 5)...")
+        print("\n[Test Step 5/9] Spawning Multithreading & Synchronization /bin/threads (Option 5)...")
         sock.sendall(b"5\r\n")
         state = 11
         last_action_time = now
@@ -182,9 +183,9 @@ while time.time() - start_time < TIMEOUT:
         state = 14
         last_action_time = now
 
-    elif state == 14 and out_log.count("Select an option [1-8]:") >= 6:
+    elif state == 14 and out_log.count("Select an option [1-9]:") >= 6:
         time.sleep(0.3)
-        print("\n[Test Step 6/8] Spawning Storage & ext2 Explorer /bin/disktool (Option 6)...")
+        print("\n[Test Step 6/9] Spawning Storage & ext2 Explorer /bin/disktool (Option 6)...")
         sock.sendall(b"6\r\n")
         state = 15
         last_action_time = now
@@ -203,28 +204,56 @@ while time.time() - start_time < TIMEOUT:
         state = 17
         last_action_time = now
 
-    elif state == 17 and out_log.count("Select an option [1-8]:") >= 7:
+    elif state == 17 and out_log.count("Select an option [1-9]:") >= 7:
         time.sleep(0.3)
-        print("\n[Test Step 7/8] Running Userland Specification Test Suites (Option 7)...")
+        print("\n[Test Step 7/9] Running Userland Specification Test Suites (Option 7)...")
         sock.sendall(b"7\r\n")
         state = 18
         last_action_time = now
 
-    elif state == 18 and "All ext2 and VFS specification tests evaluated to PASS!" in out_log and "Press Enter to return to main menu..." in out_log[len(out_log)-200:]:
+    elif state == 18 and "All socket specification tests evaluated to PASS!" in out_log and "Press Enter to return to main menu..." in out_log[len(out_log)-200:]:
         time.sleep(0.3)
         print("\n[Test] Returning to init menu from test suites...")
         sock.sendall(b"\r\n")
         state = 19
         last_action_time = now
 
-    elif state == 19 and (out_log.count("Select an option [1-8]:") >= 8 or "tests" in out_log):
+    elif state == 19 and out_log.count("Select an option [1-9]:") >= 8:
         time.sleep(0.3)
-        print("\n[Test Step 8/8] Requesting System Halt/Exit (Option 8)...")
+        print("\n[Test Step 8/9] Spawning Network Fetch & HTTP Diagnostic Client /bin/netfetch (Option 8)...")
         sock.sendall(b"8\r\n")
         state = 20
         last_action_time = now
 
-    elif state == 20 and ("Shutting down BangOS" in out_log or "PID=1 exited" in out_log or "called exit(0)" in out_log):
+    elif state == 20 and "Select an option [1-6]:" in out_log[len(out_log)-200:]:
+        time.sleep(0.3)
+        print("\n[Test] Running Automated Network & HTTP Test Suite in /bin/netfetch (Option 5)...")
+        sock.sendall(b"5\r\n")
+        state = 21
+        last_action_time = now
+
+    elif state == 21 and "All Network & HTTP/1.1 tests evaluated to PASS!" in out_log and "Press Enter to return to main menu..." in out_log[len(out_log)-200:]:
+        time.sleep(0.3)
+        print("\n[Test] Dismissing pause in /bin/netfetch...")
+        sock.sendall(b"\r\n")
+        state = 22
+        last_action_time = now
+
+    elif state == 22 and "Select an option [1-6]:" in out_log[len(out_log)-200:]:
+        time.sleep(0.3)
+        print("\n[Test] Exiting /bin/netfetch (Option 6)...")
+        sock.sendall(b"6\r\n")
+        state = 23
+        last_action_time = now
+
+    elif state == 23 and "Select an option [1-9]:" in out_log[len(out_log)-200:]:
+        time.sleep(0.3)
+        print("\n[Test Step 9/9] Requesting System Halt/Exit (Option 9)...")
+        sock.sendall(b"9\r\n")
+        state = 24
+        last_action_time = now
+
+    elif state == 24 and ("Shutting down BangOS" in out_log or "PID=1 exited" in out_log or "called exit(0)" in out_log):
         time.sleep(0.5)
         try:
             more = sock.recv(1024)
@@ -232,12 +261,12 @@ while time.time() - start_time < TIMEOUT:
                 out_log += more.decode("utf-8", errors="ignore")
         except Exception:
             pass
-        print("\n\n[SUCCESS] All standalone ELF executions, storage drive operations, ext2 VFS specs, and multitasking verified successfully!")
+        print("\n\n[SUCCESS] All standalone ELF executions, storage drive operations, network TCP/IP stack, ext2 VFS specs, and multitasking verified successfully!")
         sock.close()
         proc.kill()
         break
 
-    if now - last_action_time > 25:
+    if now - last_action_time > 45:
         print(f"\n[Test Warning] Inactivity timeout in state {state}. Proceeding to verification assertions...")
         break
 
@@ -248,7 +277,7 @@ proc.kill()
 clean_log = re.sub(r'\x1b\[[0-9;]*[mGKHJ]', '', out_log)
 
 checks = [
-    ("All Ring 0 kernel self-tests evaluated to PASS!", "Ring 0 In-Kernel Unit Test Suite (PMM, VMM, KString, TarFS, Sched, ATA, ext2)"),
+    ("All Ring 0 kernel self-tests evaluated to PASS!", "Ring 0 In-Kernel Unit Test Suite (PMM, VMM, KString, TarFS, Sched, ATA, ext2, Net)"),
     ("Bad File Descriptor Error Propagation (-EBADF)", "Userland Syscall Bad File Descriptor Validation (-EBADF)"),
     ("Null & Kernel Pointer Safety Checking (-EFAULT)", "Userland Syscall Pointer Bounds & Safety Checking (-EFAULT)"),
     ("Unimplemented System Call Dispatch Invariant (-ENOSYS)", "Userland Unimplemented Syscall Invariant (-ENOSYS)"),
@@ -259,6 +288,14 @@ checks = [
     ("POSIX lseek() SEEK_SET & SEEK_CUR", "Userland ext2 POSIX lseek Offset Repositioning"),
     ("POSIX fstat() File Size & Mode", "Userland ext2 POSIX fstat Attribute Query"),
     ("POSIX File Creation, Persistence & Readback", "Userland ext2 File Creation & Persistence Verification"),
+    ("POSIX TCP Stream Socket Creation (AF_INET, SOCK_STREAM)", "Userland POSIX Socket Creation & Allocation"),
+    ("All socket specification tests evaluated to PASS!", "Userland POSIX Socket Specification Test Suite"),
+    ("Adapter Type:   VirtIO Network Controller", "VirtIO Network Controller Detection"),
+    ("Pinging Default Gateway (10.0.2.2)", "ICMP Echo Ping Gateway Communication"),
+    ("DNS query resolved successfully!", "RFC 1035 UDP DNS Hostname Resolution"),
+    ("TCP Connection ESTABLISHED with remote host!", "TCP 3-Way Handshake Connection"),
+    ("HTTP/1.1 200 OK", "HTTP/1.1 Web Payload Fetch over TCP"),
+    ("All Network & HTTP/1.1 tests evaluated to PASS!", "Automated Network & HTTP Diagnostics Suite"),
     ("BangOS (x86_64)", "BangOS OS header banner"),
     ("System Name:    BangOS", "uname syscall validation"),
     ("Calculated Pi:  3.141592", "FPU/SSE math benchmark"),

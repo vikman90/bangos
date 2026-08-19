@@ -61,6 +61,7 @@ bool test_tarfs_all(void);
 bool test_sched_all(void);
 bool test_ata_all(void);
 bool test_ext2_all(void);
+bool test_net_all(void);
 
 // Master test entry point
 int ktest_run_all(void);
