@@ -76,7 +76,7 @@ esp: userland $(EFI_TARGET)
 	cp userland/initrd.tar $(ESP_DIR)/initrd.tar
 
 run-qemu: esp $(DISK_IMG)
-	qemu-system-x86_64 -m 512M -bios $(OVMF_PATH) -drive file=fat:rw:$(ESP_DIR),format=raw -drive file=$(DISK_IMG),format=raw,index=1,media=disk -serial stdio -nographic -net none -monitor none
+	qemu-system-x86_64 -m 512M -bios $(OVMF_PATH) -drive file=fat:rw:$(ESP_DIR),format=raw -drive file=$(DISK_IMG),format=raw,index=1,media=disk -netdev user,id=net0 -device virtio-net-pci,netdev=net0 -serial stdio -nographic -monitor none
 
 TEST_TIMEOUT ?= 180
 
