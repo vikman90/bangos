@@ -155,3 +155,16 @@ BangOS supports standard ATA/IDE disk drives operating in PIO mode across Primar
 
 For detailed hardware register maps and I/O diagrams, see [**Chapter 12 - ATA Storage Driver**](12-ata-storage-driver.md).
 
+---
+
+## 🌐 VirtIO Network Controller & PCI Enumerator (`kernel/drivers/virtio_net.c`)
+
+BangOS includes a native driver for the OASIS VirtIO Legacy PCI Network Controller (`0x1AF4:0x1000`).
+
+### Features:
+- **PCI Bus Scanning (`kernel/drivers/pci.c`)**: Enumerates 256 buses via ports `0xCF8`/`0xCFC`, decodes Vendor/Device IDs, and maps Base Address Registers (BAR0).
+- **Split Virtqueue Architecture**: Configures 16-buffer RX ring (Virtqueue 0) and TX ring (Virtqueue 1) in contiguous physical memory.
+- **Packet I/O**: Zero-copy packet reception with MAC address parsing and direct handoff to the in-kernel TCP/IP stack.
+
+For detailed memory layouts and register specifications, see [**Chapter 14 - VirtIO Network Driver**](14-virtio-network-driver.md).
+

@@ -30,10 +30,16 @@ The repository serves as a comprehensive, clean foundation for learning low-leve
   * **ATA / IDE PIO Driver**: Hardware controller probing, 16-bit PIO sector read/write with LBA28 and LBA48 support.
   * **Virtual File System (VFS)**: Hierarchical VFS supporting multiple mountpoints (`/` for TarFS ramdisk, `/mnt/ext2` for persistent storage), path resolution, and file descriptors.
   * **ext2 Filesystem Engine**: Superblock parsing (`0xEF53`), block group descriptor tables, inode tables, direct/indirect block resolution, directory lookup, and block write allocation.
-* **Linux x86_64 Syscall ABI**: Hardware `syscall` / `sysret` MSR interface (`STAR`, `LSTAR`, `SFMASK`, `EFER.SCE`) implementing over 25 POSIX syscalls (`open`, `close`, `read`, `write`, `lseek`, `stat`, `fstat`, `getdents64`, `mmap`, `mprotect`, `munmap`, `brk`, `poll`, `ioctl`, `nanosleep`, `sysinfo`, `uname`, `arch_prctl`, etc.).
+* **VirtIO Network Driver & In-Kernel TCP/IP Stack**:
+  * **PCI Bus Enumeration**: Hardware configuration space scanner (`0xCF8`/`0xCFC`) and BAR decoding.
+  * **VirtIO-Net Driver**: OASIS VirtIO specification driver with split virtqueues (16 RX descriptors + TX descriptor rings).
+  * **Full In-Kernel TCP/IP Stack**: Layer 2 Ethernet II framing, Layer 2.5 ARP broadcast resolution and dynamic cache table, Layer 3 IPv4 routing and one's complement Internet checksums, ICMP Echo pinging with TSC microsecond latency timing, Layer 4 UDP multiplexing, and RFC 1035 UDP DNS resolution (`10.0.2.3:53`).
+  * **TCP Connection Engine**: Finite state machine (`CLOSED` -> `SYN_SENT` -> `ESTABLISHED` -> `FIN_WAIT` -> `CLOSED`), 3-way handshake (`SYN`/`SYN+ACK`/`ACK`), sequence arithmetic, sliding window circular ring buffer, and stream segmentation.
+  * **POSIX Sockets ABI**: System calls for `SYS_SOCKET`, `SYS_CONNECT`, `SYS_SENDTO`, `SYS_RECVFROM`, `SYS_SHUTDOWN`, `SYS_BIND`, `SYS_LISTEN`, `SYS_GETSOCKNAME`, `SYS_GETPEERNAME`, `SYS_SETSOCKOPT`, `SYS_GETSOCKOPT`, and `SYS_POLL`.
+* **Linux x86_64 Syscall ABI**: Hardware `syscall` / `sysret` MSR interface (`STAR`, `LSTAR`, `SFMASK`, `EFER.SCE`) implementing over 35 POSIX syscalls (`open`, `close`, `read`, `write`, `lseek`, `stat`, `fstat`, `getdents64`, `mmap`, `mprotect`, `munmap`, `brk`, `poll`, `ioctl`, `nanosleep`, `sysinfo`, `uname`, `arch_prctl`, `socket`, `connect`, `sendto`, `recvfrom`, etc.).
 * **Two-Tier Test Verification**:
-  * **Ring 0 `ktest`**: In-kernel unit tests verifying memory allocators, page tables, TarFS, scheduler, ATA PIO, and ext2.
-  * **Ring 3 POSIX Specs**: Standalone userland test suites validating syscall safety, demand paging, process lifecycles, and ext2 file operations.
+  * **Ring 0 `ktest`**: In-kernel unit tests verifying memory allocators, page tables, TarFS, scheduler, ATA PIO, ext2, VirtIO-Net, checksums, ARP, and TCP.
+  * **Ring 3 POSIX Specs**: Standalone userland test suites validating syscall safety, demand paging, process lifecycles, ext2 file operations, and POSIX stream/datagram sockets.
 * **Standalone Multi-ELF Userland**:
   * **`/bin/init` (PID 1)**: Interactive process supervisor and launcher.
   * **`/bin/calc`**: Standalone geometric calculator.
@@ -42,6 +48,7 @@ The repository serves as a comprehensive, clean foundation for learning low-leve
   * **`/bin/tasks`**: Preemptive multitasking and concurrent computation workers demo.
   * **`/bin/threads`**: Multithreading, mutexes, counting semaphores, and futex synchronization suite.
   * **`/bin/disktool`**: Interactive storage explorer, superblock inspector, and persistence tester.
+  * **`/bin/netfetch`**: Interactive network diagnostics and HTTP/1.1 web payload client.
 
 ---
 
@@ -67,6 +74,9 @@ Comprehensive documentation explaining the theoretical concepts, hardware specif
 | [**11 - Extending BangOS**](docs/11-extending-bangos.md) | Extending BangOS Developer Guide | Step-by-step developer tutorial for adding new syscalls, drivers, userland tools, and test suites. |
 | [**12 - ATA / IDE Storage Driver**](docs/12-ata-storage-driver.md) | ATA / IDE Storage Driver Architecture | Port I/O register maps, PIO mode, LBA28/48, sector read/write protocols, block device abstraction. |
 | [**13 - VFS & ext2 Filesystem**](docs/13-vfs-and-ext2.md) | Virtual File System & ext2 Filesystem Engine | Superblock, block groups, inodes, direct/indirect mapping, directory records, and POSIX syscall mappings. |
+| [**14 - VirtIO Network Driver**](docs/14-virtio-network-driver.md) | VirtIO Network Driver & PCI Enumeration | PCI bus scanner, legacy VirtIO specification, split virtqueues, RX/TX descriptor rings, packet polling. |
+| [**15 - TCP/IP Network Stack**](docs/15-tcpip-network-stack.md) | In-Kernel TCP/IP Network Stack | Ethernet II, ARP dynamic cache, IPv4 routing, checksums, ICMP pinging, UDP, DNS, TCP 3-way handshake. |
+| [**16 - Sockets & HTTP Client**](docs/16-socket-api-and-http.md) | Socket API, HTTP/1.1 Client & TLS/HTTPS Guide | POSIX socket syscalls, VFS wrapping, `/bin/netfetch` HTTP client, and educational TLS/HTTPS layering. |
 
 ---
 
@@ -74,7 +84,7 @@ Comprehensive documentation explaining the theoretical concepts, hardware specif
 
 ```text
 ======================================================================
-        BangOS (x86_64) - Bare Metal Kernel v0.2.0        
+        BangOS (x86_64) - Bare Metal Kernel v0.3.0        
      PID: 1 (init) | RAM: 128 MB Total (126 MB Free) | Uptime: 0 s
 ======================================================================
 
@@ -87,9 +97,10 @@ Available Standalone Applications (Multi-ELF Ramdisk):
   [5] Multithreading & Mutex Sync    (execve /bin/threads)
   [6] Disk Explorer & Storage Mgr    (execve /bin/disktool)
   [7] Run Specification Test Suites  (execve /bin/test_*)
-  [8] Shutdown / Halt System         (exit)
+  [8] Network Fetch & HTTP Client    (execve /bin/netfetch)
+  [9] Shutdown / Halt System         (exit)
 
-Select an option [1-8]: 
+Select an option [1-9]: 
 ```
 
 ---
@@ -214,7 +225,7 @@ BangOS/
 - [x] Standalone Multi-ELF Userland Suite & POSIX Specification Test Harness
 - [x] Two-Tier Automated Verification Architecture (Ring 0 `ktest` + Ring 3 POSIX)
 - [x] ATA / IDE Storage Drive Driver, VFS Multi-Mount & ext2 Filesystem Engine
-- [ ] VirtIO Network Driver & Lightweight TCP/IP Stack
+- [x] VirtIO Network Driver & Lightweight TCP/IP Stack
 
 ---
 
