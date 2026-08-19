@@ -10,6 +10,10 @@
 #include "fs/vfs.h"
 #include "drivers/block.h"
 #include "drivers/ata.h"
+#include "drivers/pci.h"
+#include "drivers/virtio_net.h"
+#include "net/net.h"
+#include "net/socket.h"
 #include "fs/ext2/ext2.h"
 #include "tests/ktest.h"
 
@@ -61,6 +65,11 @@ void kernel_main(boot_info_t *boot_info) {
             }
         }
     }
+
+    pci_init();
+    virtio_net_init();
+    net_init();
+    socket_subsystem_init();
 
     ktest_run_all();
 

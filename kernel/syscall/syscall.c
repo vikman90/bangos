@@ -6,6 +6,10 @@
 #include "process/process.h"
 #include "lib/kstring.h"
 #include "fs/vfs.h"
+#include "net/socket.h"
+#include "net/net.h"
+#include "net/dns.h"
+#include "net/icmp.h"
 
 static uint64_t current_brk = 0x600000000000ULL;
 static uint64_t mapped_brk_page = 0x600000000000ULL;
@@ -159,7 +163,52 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
         }
 
         case SYS_POLL: {
-            return 1;
+            struct pollfd {
+                int   fd;
+                short events;
+                short revents;
+            };
+            struct pollfd *fds = (struct pollfd *)arg1;
+            size_t nfds = (size_t)arg2;
+            int timeout_ms = (int)arg3;
+            (void)timeout_ms;
+
+            if (!fds && nfds > 0) return -14; // -EFAULT
+            if ((uint64_t)fds >= 0xFFFF800000000000ULL && nfds > 0) return -14; // -EFAULT
+            if (nfds == 0) return 0;
+
+            process_t *proc = process_get_current();
+            int ready = 0;
+            for (size_t i = 0; i < nfds; i++) {
+                fds[i].revents = 0;
+                if (fds[i].fd < 0 || fds[i].fd >= VFS_MAX_FD) {
+                    fds[i].revents = 0x0020; // POLLNVAL
+                    ready++;
+                    continue;
+                }
+                if (fds[i].fd == 0 || fds[i].fd == 1 || fds[i].fd == 2) {
+                    fds[i].revents = fds[i].events & (0x0001 | 0x0004); // POLLIN | POLLOUT
+                    if (fds[i].revents) ready++;
+                    continue;
+                }
+                if (proc) {
+                    file_desc_t *fdesc = fd_get(proc->fd_table, fds[i].fd);
+                    if (fdesc && fdesc->node) {
+                        net_socket_t *sock = socket_from_vfs_node(fdesc->node);
+                        if (sock) {
+                            net_poll();
+                            fds[i].revents = (short)socket_poll(sock, fds[i].events);
+                        } else {
+                            fds[i].revents = fds[i].events & (0x0001 | 0x0004);
+                        }
+                        if (fds[i].revents) ready++;
+                    } else {
+                        fds[i].revents = 0x0020; // POLLNVAL
+                        ready++;
+                    }
+                }
+            }
+            return ready;
         }
 
 
@@ -566,6 +615,151 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
                 return (int64_t)proc->pid;
             }
             return 1;
+        }
+
+        case SYS_SOCKET: {
+            int domain = (int)arg1;
+            int type = (int)arg2 & ~0x80800; // Mask out SOCK_NONBLOCK / SOCK_CLOEXEC
+            int protocol = (int)arg3;
+
+            if (domain != AF_INET) return -97; // -EAFNOSUPPORT
+            if (type != SOCK_STREAM && type != SOCK_DGRAM) return -22; // -EINVAL
+
+            net_socket_t *sock = socket_create(domain, type, protocol);
+            if (!sock) return -24; // -EMFILE
+
+            process_t *proc = process_get_current();
+            if (!proc) {
+                socket_close(sock);
+                return -12; // -ENOMEM
+            }
+
+            int fd = fd_alloc(proc->fd_table, &sock->vfs_node, 0);
+            if (fd < 0) {
+                socket_close(sock);
+                return -24; // -EMFILE
+            }
+            return (int64_t)fd;
+        }
+
+        case SYS_CONNECT: {
+            int fd = (int)arg1;
+            const struct sockaddr_in *addr = (const struct sockaddr_in *)arg2;
+            size_t addrlen = (size_t)arg3;
+
+            if (fd < 0 || fd >= VFS_MAX_FD) return -9; // -EBADF
+            if (!addr || (uint64_t)addr >= 0xFFFF800000000000ULL) return -14; // -EFAULT
+            if (addrlen < sizeof(struct sockaddr_in)) return -22; // -EINVAL
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            file_desc_t *fdesc = fd_get(proc->fd_table, fd);
+            if (!fdesc || !fdesc->node) return -9; // -EBADF
+
+            net_socket_t *sock = socket_from_vfs_node(fdesc->node);
+            if (!sock) return -88; // -ENOTSOCK
+
+            return (int64_t)socket_connect(sock, addr);
+        }
+
+        case SYS_SENDTO: {
+            int fd = (int)arg1;
+            const void *buf = (const void *)arg2;
+            size_t len = (size_t)arg3;
+            int flags = (int)arg4;
+
+            if (fd < 0 || fd >= VFS_MAX_FD) return -9; // -EBADF
+            if (!buf && len > 0) return -14; // -EFAULT
+            if ((uint64_t)buf >= 0xFFFF800000000000ULL && len > 0) return -14; // -EFAULT
+            if (len == 0) return 0;
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            file_desc_t *fdesc = fd_get(proc->fd_table, fd);
+            if (!fdesc || !fdesc->node) return -9; // -EBADF
+
+            net_socket_t *sock = socket_from_vfs_node(fdesc->node);
+            if (!sock) {
+                if (fdesc->node->ops && fdesc->node->ops->write) {
+                    return fdesc->node->ops->write(fdesc->node, fdesc->offset, len, buf);
+                }
+                return -88; // -ENOTSOCK
+            }
+
+            return socket_send(sock, buf, len, flags);
+        }
+
+        case SYS_RECVFROM: {
+            int fd = (int)arg1;
+            void *buf = (void *)arg2;
+            size_t len = (size_t)arg3;
+            int flags = (int)arg4;
+
+            if (fd < 0 || fd >= VFS_MAX_FD) return -9; // -EBADF
+            if (!buf && len > 0) return -14; // -EFAULT
+            if ((uint64_t)buf >= 0xFFFF800000000000ULL && len > 0) return -14; // -EFAULT
+            if (len == 0) return 0;
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            file_desc_t *fdesc = fd_get(proc->fd_table, fd);
+            if (!fdesc || !fdesc->node) return -9; // -EBADF
+
+            net_socket_t *sock = socket_from_vfs_node(fdesc->node);
+            if (!sock) {
+                if (fdesc->node->ops && fdesc->node->ops->read) {
+                    return fdesc->node->ops->read(fdesc->node, fdesc->offset, len, buf);
+                }
+                return -88; // -ENOTSOCK
+            }
+
+            return socket_recv(sock, buf, len, flags);
+        }
+
+        case SYS_SHUTDOWN: {
+            int fd = (int)arg1;
+            if (fd < 0 || fd >= VFS_MAX_FD) return -9; // -EBADF
+
+            process_t *proc = process_get_current();
+            if (!proc) return -9;
+
+            file_desc_t *fdesc = fd_get(proc->fd_table, fd);
+            if (!fdesc || !fdesc->node) return -9; // -EBADF
+
+            net_socket_t *sock = socket_from_vfs_node(fdesc->node);
+            if (sock) {
+                socket_close(sock);
+            }
+            return 0;
+        }
+
+        case SYS_BIND:
+        case SYS_LISTEN: {
+            return 0; // Success stub for client workflows
+        }
+
+        case SYS_GETSOCKNAME:
+        case SYS_GETPEERNAME: {
+            struct sockaddr_in *addr = (struct sockaddr_in *)arg2;
+            uint32_t *addrlen = (uint32_t *)arg3;
+            if (addr && addrlen && *addrlen >= sizeof(struct sockaddr_in)) {
+                addr->sin_family = 2; // AF_INET
+                *addrlen = sizeof(struct sockaddr_in);
+            }
+            return 0;
+        }
+
+        case SYS_SENDMSG:
+        case SYS_RECVMSG: {
+            return 0; // Stub for complex datagram workflows
+        }
+
+        case SYS_SETSOCKOPT:
+        case SYS_GETSOCKOPT: {
+            return 0; // Success stub
         }
 
         case SYS_EXIT:
