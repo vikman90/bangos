@@ -92,11 +92,13 @@
 | **Process & Scheduler** | [`kernel/process/process.c`](file:///root/test/little-bang/kernel/process/process.c) | Process table, `fork()`, `clone()`, `execve()`, `wait4()`, Round-Robin scheduler, and `futex`. |
 | **TarFS Ramdisk** | [`kernel/fs/tarfs.c`](file:///root/test/little-bang/kernel/fs/tarfs.c) | In-memory USTAR archive parser and binary file lookup engine. |
 | **ELF64 Loader** | [`kernel/loader/elf.c`](file:///root/test/little-bang/kernel/loader/elf.c) | Executable and Linkable Format parser, `PT_LOAD` mapper, and BSS clearing. |
-| **Syscall Dispatcher** | [`kernel/syscall/syscall.c`](file:///root/test/little-bang/kernel/syscall/syscall.c) | Linux x86_64 ABI system call dispatcher handling over 20 POSIX syscalls. |
-| **Hardware Drivers** | [`kernel/drivers/`](file:///root/test/little-bang/kernel/drivers/) | 16550 UART serial driver, 8254 PIT timer, 8259 PIC controller, and PS/2 keyboard. |
+| **Syscall Dispatcher** | [`kernel/syscall/syscall.c`](file:///root/test/little-bang/kernel/syscall/syscall.c) | Linux x86_64 ABI system call dispatcher handling over 35 POSIX syscalls. |
+| **Storage & VFS** | [`kernel/fs/`](file:///root/test/little-bang/kernel/fs/) | Virtual File System mountpoints, ATA PIO block storage driver, and ext2 filesystem engine. |
+| **Hardware Drivers** | [`kernel/drivers/`](file:///root/test/little-bang/kernel/drivers/) | 16550 UART serial, 8254 PIT timer, 8259 PIC, PS/2 keyboard, ATA PIO, PCI scanner, and VirtIO-Net. |
+| **Network Stack** | [`kernel/net/`](file:///root/test/little-bang/kernel/net/) | In-kernel TCP/IP protocol stack (Ethernet II, ARP, IPv4, ICMP, UDP, DNS, TCP, and POSIX sockets). |
 | **Kernel Library** | [`kernel/lib/kstring.c`](file:///root/test/little-bang/kernel/lib/kstring.c) | Freestanding string manipulation and memory copying routines for Ring 0. |
-| **Kernel Tests (`ktest`)**| [`kernel/tests/`](file:///root/test/little-bang/kernel/tests/) | Built-in Ring 0 unit test suites executed automatically during boot. |
-| **Userland Binaries** | [`userland/src/`](file:///root/test/little-bang/userland/src/) | Applications (`init`, `calc`, `sysinfo`, `bench`, `tasks`, `threads`, and POSIX test suites). |
+| **Kernel Tests (`ktest`)**| [`kernel/tests/`](file:///root/test/little-bang/kernel/tests/) | Built-in Ring 0 unit test suites (PMM, VMM, Strings, Sched, ATA, ext2, Net). |
+| **Userland Binaries** | [`userland/src/`](file:///root/test/little-bang/userland/src/) | Applications (`init`, `calc`, `sysinfo`, `bench`, `tasks`, `threads`, `disktool`, `netfetch`, and POSIX test suites). |
 
 ---
 

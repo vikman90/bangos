@@ -11,6 +11,8 @@ Welcome to the technical documentation for **BangOS**, an educational, lightweig
 - **Multitasking & Concurrency**: 100 Hz 8254 PIT timer preemption, Round-Robin scheduler, `fork()`, `clone()` multithreading with `CLONE_VM`, and fast userspace locking via `futex`.
 - **Linux ABI & Syscall Trampoline**: High-performance hardware `syscall` / `sysret` handling adhering to the POSIX / Linux x86_64 ABI.
 - **In-Memory TarFS Ramdisk**: Initial ramdisk (`initrd.tar`) parsed from RAM loading standalone 64-bit ELF executables statically linked with `musl-gcc`.
+- **Persistent Storage & ext2 Filesystem**: Parallel ATA (IDE) PIO driver and fully-featured Linux Second Extended Filesystem (`ext2`) mounted under the VFS at `/mnt/ext2`.
+- **VirtIO-Net & In-Kernel TCP/IP Stack**: Legacy OASIS PCI VirtIO network controller with Virtqueues, Ethernet II, ARP, IPv4 routing, ICMP ping, UDP, RFC 1035 DNS, TCP state machine, and POSIX socket system calls.
 
 ---
 
@@ -30,3 +32,8 @@ Welcome to the technical documentation for **BangOS**, an educational, lightweig
 | [**09. Userland Environment**](09-userland-environment.md) | Userland Runtime, Applications & Concurrency | Static `musl-gcc` compilation, `/bin/init` supervisor, standalone ELFs, and TUI library. |
 | [**10. Specification Testing & QEMU**](10-testing-and-qemu.md) | Specification-Driven Testing & QEMU Harness | Kernel unit tests (`ktest`), userland POSIX spec runners, and headless QEMU serial automation. |
 | [**11. Extending BangOS**](11-extending-bangos.md) | Extending BangOS Developer Guide | Tutorial on adding new system calls, device drivers, userland tools, and automated tests. |
+| [**12. ATA Storage Controller**](12-ata-storage-driver.md) | Parallel ATA (IDE) Storage Controller & Disk Driver | PIO mode 28-bit/48-bit LBA disk block I/O, sector caching, and partition management. |
+| [**13. VFS & ext2 Filesystem**](13-vfs-and-ext2.md) | Virtual File System & ext2 On-Disk Filesystem Engine | Inode indexing, directory tables, block groups, file persistence, and multi-mount VFS. |
+| [**14. VirtIO Network Driver**](14-virtio-network-driver.md) | VirtIO-Net Driver & PCI Bus Enumeration | OASIS legacy VirtIO network interface, PCI BAR access, split Virtqueues, and packet rings. |
+| [**15. TCP/IP Protocol Stack**](15-tcpip-network-stack.md) | Lightweight In-Kernel TCP/IP Protocol Stack | Ethernet II, ARP dynamic cache, IPv4 routing, checksum mathematics, ICMP ping, UDP, and TCP FSM. |
+| [**16. Sockets & HTTP Client**](16-socket-api-and-http.md) | POSIX Sockets & Userland HTTP/1.1 Web Client | BSD/POSIX socket system calls, `/bin/netfetch` diagnostic tool, and TLS/HTTPS integration roadmap. |

@@ -53,7 +53,7 @@ static int launch_program(const char *path, const char *name) {
 
 ```text
 ======================================================================
-        BangOS (x86_64) - Bare Metal Kernel v0.2.0        
+        BangOS (x86_64) - Bare Metal Kernel v0.3.0        
      PID: 1 (init) | RAM: 128 MB Total (126 MB Free) | Uptime: 0 s
 ======================================================================
 
@@ -64,10 +64,12 @@ Available Standalone Applications (Multi-ELF Ramdisk):
   [3] CPU FPU/SSE & Timer Benchmark  (execve /bin/bench)
   [4] Preemptive Multitasking Tasks  (execve /bin/tasks)
   [5] Multithreading & Mutex Sync    (execve /bin/threads)
-  [6] Run Specification Test Suites  (execve /bin/test_*)
-  [7] Shutdown / Halt System         (exit)
+  [6] Disk Explorer & Storage Mgr    (execve /bin/disktool)
+  [7] Run Specification Test Suites  (execve /bin/test_*)
+  [8] Network Fetch & HTTP Client    (execve /bin/netfetch)
+  [9] Shutdown / Halt System         (exit)
 
-Select an option [1-7]: 
+Select an option [1-9]: 
 ```
 
 ### 1. `/bin/calc` (Geometric Calculator)
@@ -91,6 +93,17 @@ Demonstrates kernel thread creation (`CLONE_VM`) and synchronization primitives:
 - **Race Condition Demo**: Unsynchronized concurrent increments exhibiting data races from preemptive timer interrupts.
 - **Mutex Synchronization**: Atomic CAS + Futex mutex protecting shared data structures with 100% consistency.
 - **Producer-Consumer Queue Pipeline**: Bounded buffer managed with Counting Semaphores and Mutexes.
+
+### 6. `/bin/disktool` (Storage Explorer & ext2 Inspector)
+Provides an interactive TUI for inspecting ATA storage drives, viewing ext2 superblocks, directory hierarchies, reading files, and running persistent write tests.
+
+### 7. `/bin/netfetch` (Network Diagnostics & HTTP/1.1 Web Client)
+Interactive networking suite with options to:
+- Probe VirtIO-Net MAC address, IP settings, and gateway configuration.
+- Send ICMP Echo ping requests to the default gateway (`10.0.2.2`).
+- Perform RFC 1035 UDP DNS hostname queries against the nameserver (`10.0.2.3:53`).
+- Connect to remote HTTP web servers over TCP stream sockets and fetch HTML response payloads.
+- Execute automated end-to-end network verification test suites.
 
 ---
 

@@ -156,13 +156,26 @@ syscall_entry:
 | **`24`** | `SYS_SCHED_YIELD` | *none* | Cooperatively yields remaining CPU quantum to next ready task. |
 | **`35`** | `SYS_NANOSLEEP` | `const struct timespec *req, struct timespec *rem` | High-precision sleep using calibrated timestamp counter (TSC) and PIT timer ticks. |
 | **`39`** | `SYS_GETPID` | *none* | Returns current process group / process ID (`proc->tgid`). |
+| **`41`** | `SYS_SOCKET` | `int domain, int type, int protocol` | Allocates network socket endpoint (`AF_INET`, `SOCK_STREAM` / `SOCK_DGRAM`) and wraps in VFS file descriptor. |
+| **`42`** | `SYS_CONNECT` | `int sockfd, const struct sockaddr *addr, socklen_t addrlen` | Initiates TCP 3-way handshake (`SYN`/`SYN+ACK`/`ACK`) to remote host. |
+| **`44`** | `SYS_SENDTO` | `int fd, const void *buf, size_t len, int flags, ...` | Transmits network stream or datagram payload via TCP/IP or UDP. |
+| **`45`** | `SYS_RECVFROM`| `int fd, void *buf, size_t len, int flags, ...` | Receives incoming payload from socket ring buffer. |
+| **`46`** | `SYS_SENDMSG` | `int fd, const struct msghdr *msg, int flags` | Message send stub for POSIX network compatibility. |
+| **`47`** | `SYS_RECVMSG` | `int fd, struct msghdr *msg, int flags` | Message receive stub for POSIX network compatibility. |
+| **`48`** | `SYS_SHUTDOWN`| `int sockfd, int how` | Shuts down reading, writing, or both on a connected socket. |
+| **`49`** | `SYS_BIND` | `int sockfd, const struct sockaddr *addr, socklen_t addrlen` | Binds local network address. |
+| **`50`** | `SYS_LISTEN` | `int sockfd, int backlog` | Configures socket for listening. |
+| **`51`** | `SYS_GETSOCKNAME`| `int sockfd, struct sockaddr *addr, socklen_t *addrlen` | Returns local socket endpoint information. |
+| **`52`** | `SYS_GETPEERNAME`| `int sockfd, struct sockaddr *addr, socklen_t *addrlen` | Returns remote peer address information. |
+| **`54`** | `SYS_SETSOCKOPT`| `int sockfd, int level, int optname, const void *optval, socklen_t optlen` | Sets socket options. |
+| **`55`** | `SYS_GETSOCKOPT`| `int sockfd, int level, int optname, void *optval, socklen_t *optlen` | Queries socket options. |
 | **`56`** | `SYS_CLONE` | `unsigned long flags, void *child_stack, int *ptid, int *ctid, void *newtls` | Creates execution context: processes or threads (`CLONE_VM`). |
 | **`57`** | `SYS_FORK` | *none* | Creates child process with duplicated memory mappings and execution state. |
 | **`58`** | `SYS_VFORK` | *none* | Creates child process context. |
 | **`59`** | `SYS_EXECVE` | `const char *path, char *const argv[], char *const envp[]` | Replaces current process with new standalone ELF from TarFS ramdisk. |
 | **`60`** | `SYS_EXIT` | `int status` | Terminates process/thread, notifies parent via `wait4`, or halts system if PID 1. |
 | **`61`** | `SYS_WAIT4` | `pid_t pid, int *status, int options, struct rusage *ru` | Waits for child process termination and retrieves exit status code. |
-| **`63`** | `SYS_UNAME` | `struct utsname *buf` | Populates system name ("BangOS"), release ("0.2.0"), architecture ("x86_64"). |
+| **`63`** | `SYS_UNAME` | `struct utsname *buf` | Populates system name ("BangOS"), release ("0.3.0"), architecture ("x86_64"). |
 | **`99`** | `SYS_SYSINFO` | `struct sysinfo *info` | Populates total RAM, free RAM, uptime in seconds, and active process count. |
 | **`158`** | `SYS_ARCH_PRCTL` | `int code, unsigned long addr` | Sets Thread Local Storage (TLS) by updating `MSR_FS_BASE` (`0xC0000100`). |
 | **`186`** | `SYS_GETTID` | *none* | Returns thread ID (`proc->pid`). |
