@@ -141,6 +141,7 @@ typedef struct {
 
 ### 5. Terminating UEFI Boot Services (`ExitBootServices`)
 Calling `ExitBootServices` is the critical point of no return:
+
 - It terminates firmware boot services, freeing firmware-allocated scratch memory.
 - It disables UEFI timer interrupts and hands direct ownership of the hardware to BangOS.
 
@@ -165,6 +166,7 @@ kernel_main(&boot_info);
 ## 🛡️ CPU State Upon Kernel Entry
 
 When `kernel_main()` begins execution:
+
 1. **Paging**: The CPU is running in 64-bit Long Mode using the UEFI firmware's identity-mapped page tables.
 2. **Interrupts**: Masked / Disabled (`cli`).
 3. **Segments**: Firmware default segments are active (BangOS immediately initializes its own GDT).

@@ -1,6 +1,7 @@
 # 05 - Process Management, Preemptive Scheduling & Synchronization
 
 BangOS implements a complete **multi-process and multithreading runtime** featuring:
+
 1. Process Control Block (`process_t`) architecture.
 2. Binary execution via `fork()`, `clone()`, `execve()`, and `wait4()`.
 3. musl C user stack initialization (`argc`, `argv`, `envp`, Auxiliary Vectors).
@@ -80,6 +81,7 @@ Lower Addresses (Grows downwards)
 
 ### 1. `process_fork()` (Independent Process Creation)
 `process_fork()` duplicates the parent process:
+
 1. Allocates a new PID and a dedicated 16 KB kernel stack.
 2. Allocates a fresh 64 KB user stack and copies the entire parent stack contents (`kmemcpy`).
 3. Duplicates all Virtual Memory Areas (VMAs) and segment descriptors.
@@ -88,6 +90,7 @@ Lower Addresses (Grows downwards)
 
 ### 2. `process_clone()` (Lightweight Thread Creation)
 When called with `CLONE_VM`, `process_clone()` creates a thread:
+
 1. Shares code and data segment mappings with the parent without duplicating memory.
 2. Assigns a caller-provided user stack pointer (`child_stack`).
 3. Sets `thread->tgid = parent->tgid` (same thread group).

@@ -55,20 +55,26 @@ markdown_extensions:
 
 nav:
   - "Overview": "index.md"
-  - "Architecture": "00-architecture.md"
-  - "UEFI Bootloading": "01-uefi-bootloading.md"
-  - "GDT, TSS & IDT": "02-gdt-idt-tss.md"
-  - "Paging & Memory": "03-paging-and-memory.md"
-  - "Syscall ABI": "04-syscall-abi.md"
-  - "Process & Scheduler": "05-process-multitasking-sched.md"
-  - "TarFS & ELF Loader": "06-elf-loader-tarfs.md"
-  - "FPU & SSE": "07-fpu-sse.md"
-  - "Hardware Drivers": "08-hardware-drivers.md"
-  - "ATA Storage Driver": "12-ata-storage-driver.md"
-  - "VFS & ext2 Filesystem": "13-vfs-and-ext2.md"
-  - "VirtIO Network Driver": "14-virtio-network-driver.md"
-  - "TCP/IP Network Stack": "15-tcpip-network-stack.md"
-  - "Sockets & HTTP Client": "16-socket-api-and-http.md"
-  - "Userland Runtime": "09-userland-environment.md"
-  - "Testing & QEMU": "10-testing-and-qemu.md"
-  - "Extending BangOS": "11-extending-bangos.md"
+  - "Kernel Core":
+      - "Architecture": "00-architecture.md"
+      - "UEFI Bootloading": "01-uefi-bootloading.md"
+      - "GDT, TSS & IDT": "02-gdt-idt-tss.md"
+      - "Paging & Memory": "03-paging-and-memory.md"
+      - "Process & Scheduler": "05-process-multitasking-sched.md"
+      - "FPU & SSE": "07-fpu-sse.md"
+  - "Storage & Filesystems":
+      - "Hardware Drivers": "08-hardware-drivers.md"
+      - "ATA Storage Driver": "12-ata-storage-driver.md"
+      - "TarFS & ELF Loader": "06-elf-loader-tarfs.md"
+      - "VFS & ext2 Filesystem": "13-vfs-and-ext2.md"
+  - "Networking":
+      - "VirtIO Network Driver": "14-virtio-network-driver.md"
+      - "TCP/IP Network Stack": "15-tcpip-network-stack.md"
+      - "Sockets & HTTP Client": "16-socket-api-and-http.md"
+  - "Userland & ABI":
+      - "Syscall ABI": "04-syscall-abi.md"
+      - "Userland Runtime": "09-userland-environment.md"
+  - "Development & Testing":
+      - "Developer Guide & Tooling": "17-build-system-and-tooling.md"
+      - "Testing & QEMU Automation": "10-testing-and-qemu.md"
+      - "Extending BangOS": "11-extending-bangos.md"

@@ -16,6 +16,7 @@ In standard PC/AT and x86_64 IBM-compatible architectures, two legacy IDE channe
 | **Secondary (ATA 2/3)** | `0x170` - `0x177` | `0x376` | IRQ 15 |
 
 Each IDE channel supports up to **two drives**:
+
 - **Drive 0 (Master)**
 - **Drive 1 (Slave)**
 
@@ -55,6 +56,7 @@ Older disks addressed sectors using Cylinder-Head-Sector (CHS). BangOS exclusive
 
 ### 2.1 LBA28 Addressing Format (Up to 128 GB)
 In LBA28:
+
 - `LBA_LO` holds `LBA[7:0]`
 - `LBA_MID` holds `LBA[15:8]`
 - `LBA_HI` holds `LBA[23:16]`
@@ -78,22 +80,23 @@ During kernel initialization, `ata_init()` probes all 4 potential ATA positions:
 
 ```mermaid
 flowchart TD
-    A[Start ata_init] --> B[Select Drive on Channel]
-    B --> C[Send 400ns Delay via Alt Status]
-    C --> D[Send IDENTIFY Command 0xEC]
-    D --> E{Status == 0x00?}
-    E -- Yes --> F[No Drive Present]
-    E -- No --> G[Wait for BSY == 0]
-    G --> H{LBA_MID == 0x14 & LBA_HI == 0xEB?}
-    H -- Yes --> I[ATAPI / CD-ROM Device]
-    H -- No --> J[Wait for DRQ == 1]
-    J --> K[Read 256 Words from 0x1F0 into buffer]
-    K --> L[Parse Model, Serial, Sector Count, LBA48 support]
-    L --> M[Register Block Device with VFS/Block Layer]
+    A["Start ata_init"] --> B["Select Drive on Channel"]
+    B --> C["Send 400ns Delay via Alt Status"]
+    C --> D["Send IDENTIFY Command 0xEC"]
+    D --> E{"Status == 0x00?"}
+    E -- Yes --> F["No Drive Present"]
+    E -- No --> G["Wait for BSY == 0"]
+    G --> H{"LBA_MID == 0x14 and LBA_HI == 0xEB?"}
+    H -- Yes --> I["ATAPI / CD-ROM Device"]
+    H -- No --> J["Wait for DRQ == 1"]
+    J --> K["Read 256 Words from 0x1F0 into buffer"]
+    K --> L["Parse Model, Serial, Sector Count, LBA48 support"]
+    L --> M["Register Block Device with VFS/Block Layer"]
 ```
 
 ### ATA Identify Structure Parsing
 The identify payload contains 512 bytes:
+
 - **Words 10-19**: Serial Number (20 ASCII characters, byte-swapped).
 - **Words 27-46**: Model String (40 ASCII characters, byte-swapped).
 - **Words 60-61**: Total 28-bit LBA sector count.

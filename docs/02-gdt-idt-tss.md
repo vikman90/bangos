@@ -3,6 +3,7 @@
 In x86_64 Long Mode, the memory model is predominantly **flat**: the CPU ignores segment base addresses and limits for standard code and data segments (treating the virtual address space as a contiguous 64-bit range from `0x0000000000000000` to `0xFFFFFFFFFFFFFFFF`).
 
 However, the **Global Descriptor Table (GDT)** and **Task State Segment (TSS)** remain strictly required by the x86_64 architecture to:
+
 1. Define **Privilege Levels**: Ring 0 (Kernel CPL 0) vs. Ring 3 (User CPL 3).
 2. Configure **Segment Selectors** required by hardware `syscall`/`sysret` instructions (`STAR` MSR).
 3. Provide the **Kernel Stack Pointer (`RSP0`)** upon privilege transitions.
@@ -85,6 +86,7 @@ The IDT is a table of 256 16-byte gate descriptors loaded via `lidt`.
 ```
 
 ### IDT Configuration Steps:
+
 1. **Remap 8259 PIC**: Remaps Master PIC vectors to `0x20..0x27` (32..39) and Slave PIC to `0x28..0x2F` (40..47) to prevent overlap with standard CPU exceptions `0..31`.
 2. **Register CPU Exception Handlers (0..31)**: Connects each vector to an assembly stub in `kernel/arch/x86_64/isr.s` via `isr_stub_table[i]`.
 3. **Register Timer IRQ 0 (Vector 32)**: Connects vector 32 to `isr_32`, driving the 100 Hz preemptive scheduler.

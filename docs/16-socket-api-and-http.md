@@ -27,11 +27,12 @@ flowchart TD
         VFSNode --> NetSocket
     end
 
-    FD -->|read() / write() / close()| FDTable
+    FD -->|"read() / write() / close()"| FDTable
 ```
 
 ### 1.1 Socket VFS Operations (`kernel/net/socket.c`)
 To enable standard POSIX file operations (`read`, `write`, `close`, `poll`) on network connections:
+
 * `socket_vfs_read()`: Delegates to `tcp_recv()` for stream sockets or reads from the UDP packet queue.
 * `socket_vfs_write()`: Delegates to `tcp_send()` for stream sockets or transmits via `udp_send()`.
 * `socket_vfs_close()`: Gracefully tears down TCP connections (`tcp_close()`), frees internal ring buffers, and reclaims file descriptor indices.
@@ -65,23 +66,23 @@ The `/bin/netfetch` application is a native userland tool compiled statically wi
 
 ```mermaid
 sequenceDiagram
-    participant User as Terminal User
-    participant App as /bin/netfetch
-    participant Kernel as BangOS Kernel
-    participant Web as Remote Web Server (e.g. 93.184.216.34:80)
+    participant User as "Terminal User"
+    participant App as "/bin/netfetch"
+    participant Kernel as "BangOS Kernel"
+    participant Web as "Remote Web Server (93.184.216.34:80)"
 
     User->>App: Launch Option 4 (Fetch HTTP URL)
     App->>Kernel: socket(AF_INET, SOCK_STREAM, 0)
     Kernel-->>App: fd = 3
-    App->>Kernel: connect(fd=3, 93.184.216.34:80)
-    Kernel->>Web: TCP SYN -> SYN+ACK -> ACK Handshake
+    App->>Kernel: connect(fd=3, 93.184.216.34, port=80)
+    Kernel->>Web: TCP 3-Way Handshake (SYN, SYN+ACK, ACK)
     Kernel-->>App: 0 (Connected)
-    App->>Kernel: write(fd=3, "GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n")
+    App->>Kernel: write(fd=3, HTTP GET Request)
     Kernel->>Web: TCP Data Segment (HTTP Request)
-    Web-->>Kernel: TCP Data Segment ("HTTP/1.1 200 OK\r\n...")
+    Web-->>Kernel: TCP Data Segment (HTTP 200 OK Response)
     App->>Kernel: read(fd=3, response_buf, 4096)
     Kernel-->>App: Bytes Read (HTTP Response Body)
-    App->>User: Renders HTTP Status, Headers, and HTML Payload in ANSI Color
+    App->>User: Renders HTTP Status, Headers, and Payload
     App->>Kernel: close(fd=3)
 ```
 
@@ -114,8 +115,8 @@ flowchart TD
         TLS["Lightweight TLS Engine (e.g. BearSSL or mbedTLS)"]
         SocketAPI["Standard POSIX Sockets (socket, connect, send, recv)"]
         
-        HTTPSApp -->|Cleartext (Plain HTTP)| TLS
-        TLS -->|Encrypted TLS Records (AES-GCM)| SocketAPI
+        HTTPSApp -->|"Cleartext (Plain HTTP)"| TLS
+        TLS -->|"Encrypted TLS Records (AES-GCM)"| SocketAPI
     end
 
     subgraph Ring0["Kernel (Ring 0)"]
@@ -131,10 +132,12 @@ flowchart TD
 
 ### 4.1 Recommended Embedded TLS Libraries
 For educational or resource-constrained operating systems like BangOS:
+
 1. **BearSSL**: An exceptionally small (approx. 50 KB binary size), high-performance TLS 1.2 implementation written in clean C with zero dynamic memory allocation requirements.
 2. **mbedTLS**: Modular, well-documented C library for TLS, cryptography, and X.509 certificate validation.
 
 ### 4.2 How a TLS Handshake Operates over Sockets
+
 1. **Standard TCP Connection**: The application creates a regular socket (`socket(AF_INET, SOCK_STREAM, 0)`) and connects to port 443 (`connect()`).
 2. **TLS Context Initialization**: The application initializes a TLS client context and attaches custom I/O callbacks:
    ```c

@@ -37,3 +37,4 @@ Welcome to the technical documentation for **BangOS**, an educational, lightweig
 | [**14. VirtIO Network Driver**](14-virtio-network-driver.md) | VirtIO-Net Driver & PCI Bus Enumeration | OASIS legacy VirtIO network interface, PCI BAR access, split Virtqueues, and packet rings. |
 | [**15. TCP/IP Protocol Stack**](15-tcpip-network-stack.md) | Lightweight In-Kernel TCP/IP Protocol Stack | Ethernet II, ARP dynamic cache, IPv4 routing, checksum mathematics, ICMP ping, UDP, and TCP FSM. |
 | [**16. Sockets & HTTP Client**](16-socket-api-and-http.md) | POSIX Sockets & Userland HTTP/1.1 Web Client | BSD/POSIX socket system calls, `/bin/netfetch` diagnostic tool, and TLS/HTTPS integration roadmap. |
+| [**17. Build System & Tooling**](17-build-system-and-tooling.md) | Build System, Tooling & Developer Workflows | Makefile targets, QEMU interactive mode, GDB debugging, Docker containers, and MkDocs. |

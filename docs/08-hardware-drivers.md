@@ -1,6 +1,7 @@
 # 08 - Hardware Device Drivers & Low-Level I/O
 
 BangOS interfaces directly with hardware peripherals via x86_64 I/O port instructions (`inb`, `outb`, `outw`). All driver modules reside in the [`kernel/drivers/`](file:///root/test/little-bang/kernel/drivers/) directory:
+
 1. **16550 UART Serial Driver** (COM1 Serial Console at 38400 baud).
 2. **8254 PIT Timer Driver** (100 Hz Preemptive Scheduler Interrupts).
 3. **8259 PIC Driver** (Programmable Interrupt Controller remapping).
@@ -37,6 +38,7 @@ static inline void io_wait(void) {
 The 16550 Universal Asynchronous Receiver-Transmitter (UART) provides the primary console interface for BangOS over serial port **COM1 (`0x3F8`)**.
 
 ### I/O Port Map:
+
 * `COM1 + 0` (`0x3F8`): Receiver Buffer / Transmitter Holding Register / Divisor Latch Low.
 * `COM1 + 1` (`0x3F9`): Interrupt Enable Register / Divisor Latch High.
 * `COM1 + 2` (`0x3FA`): FIFO Control Register (FCR).
@@ -59,6 +61,7 @@ void uart_init(void) {
 
 ### Formatted Kernel Printf (`kprintf`)
 `kprintf()` provides freestanding variadic output across Ring 0 supporting:
+
 - `%s` (Strings), `%d` (Signed integers), `%u` (Unsigned integers), `%x` (Hexadecimal integers), `%p` (Pointers), `%c` (Characters), `%%` (Literal percent).
 
 ---
@@ -69,6 +72,7 @@ The **8254 Programmable Interval Timer (PIT)** generates periodic hardware inter
 
 ### 1. 8259 PIC Remapping
 Legacy PC motherboards map hardware IRQs 0..7 to CPU vectors 8..15 (which overlap with CPU exception vectors). `pic_remap()` shifts the vector offsets:
+
 - **Master PIC**: Vectors `0x20..0x27` (32..39).
 - **Slave PIC**: Vectors `0x28..0x2F` (40..47).
 
@@ -98,10 +102,12 @@ void pit_init(uint32_t frequency_hz) {
 ## ⌨️ PS/2 Keyboard Driver (`kernel/drivers/keyboard.c`)
 
 The PS/2 keyboard controller communicates via:
+
 - **Port `0x64` (Status Register)**: Bit 0 indicates data availability in output buffer.
 - **Port `0x60` (Data Register)**: Delivers scancodes.
 
 ### Scancode Decoding:
+
 - **Make Codes (Key Press)**: Scancodes with bit 7 clear (`!(scancode & 0x80)`).
 - **Break Codes (Key Release)**: Scancodes with bit 7 set (`scancode & 0x80`).
 - BangOS translates Scan Code Set 1 into ASCII characters via `scancode_map[]`.
@@ -149,6 +155,7 @@ To enable deterministic, headless testing in CI pipelines and clean system shutd
 BangOS supports standard ATA/IDE disk drives operating in PIO mode across Primary (`0x1F0`) and Secondary (`0x170`) channels.
 
 ### Features:
+
 - **Port Probing & Identification**: Issues `0xEC` (`IDENTIFY`), decodes model string, serial numbers, sector capacity, and checks for LBA48 support.
 - **LBA28 / LBA48 Sector I/O**: Performs 16-bit word transfers via `0x1F0` with hardware status busy-wait and DRQ polling.
 - **Block Device Layer (`kernel/drivers/block.c`)**: Exposes registered drives (`/dev/ata0`, `/dev/ata1`) as abstract `block_dev_t` devices to the VFS and filesystems.
@@ -162,6 +169,7 @@ For detailed hardware register maps and I/O diagrams, see [**Chapter 12 - ATA St
 BangOS includes a native driver for the OASIS VirtIO Legacy PCI Network Controller (`0x1AF4:0x1000`).
 
 ### Features:
+
 - **PCI Bus Scanning (`kernel/drivers/pci.c`)**: Enumerates 256 buses via ports `0xCF8`/`0xCFC`, decodes Vendor/Device IDs, and maps Base Address Registers (BAR0).
 - **Split Virtqueue Architecture**: Configures 16-buffer RX ring (Virtqueue 0) and TX ring (Virtqueue 1) in contiguous physical memory.
 - **Packet I/O**: Zero-copy packet reception with MAC address parsing and direct handoff to the in-kernel TCP/IP stack.

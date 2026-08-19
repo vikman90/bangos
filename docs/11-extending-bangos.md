@@ -114,6 +114,7 @@ Add an entry in `show_menu()` and invoke `launch_program("/bin/myapp", "myapp")`
 ## ✅ Compliance & Quality Checklist
 
 Before submitting changes:
+
 - [ ] Dedicated topic branch created (`feat/`, `fix/`, `docs/`, `test/`).
 - [ ] Code, comments, documentation, and commit messages are 100% in English.
 - [ ] `make clean && make all` compiles cleanly without warnings (`-Wall -Wextra`).

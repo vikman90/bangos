@@ -38,6 +38,7 @@ void syscall_init_msrs(void) {
 ## 📋 System V AMD64 ABI Register Passing Convention
 
 When a userland binary invokes `syscall`:
+
 * **Syscall Number**: Loaded into register `RAX`.
 * **Arguments (Up to 6)**:
   1. `RDI` (Argument 1)

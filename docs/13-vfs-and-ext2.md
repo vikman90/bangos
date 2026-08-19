@@ -9,18 +9,19 @@ This document details the software architecture, on-disk geometry math, POSIX sy
 The BangOS VFS provides a unified, hierarchical abstraction over disparate storage mechanisms, including in-memory TarFS ramdisks and on-disk ext2 volumes.
 
 ```mermaid
-graph TD
-    Userland[Userland POSIX Application /bin/disktool] -->|open, read, write, stat, close| Syscall[Syscall Dispatch Layer]
-    Syscall -->|fd_table[fd] -> file_desc_t| VFS[Virtual File System VFS Core]
-    VFS -->|vfs_lookup / vfs_mount| Mounts[Mount Table / & /mnt/ext2]
-    Mounts -->|vfs_ops_t: tarfs_ops| TarFS[In-Memory Ramdisk TarFS]
-    Mounts -->|vfs_ops_t: ext2_ops| ext2[ext2 Filesystem Driver]
-    ext2 -->|block_dev_t read/write_blocks| BlockDev[Block Device Abstraction]
-    BlockDev -->|ATA PIO inw/outw| ATADriver[ATA / IDE Storage Driver]
+flowchart TD
+    Userland["Userland POSIX Application (/bin/disktool)"] -->|"open, read, write, stat, close"| Syscall["Syscall Dispatch Layer"]
+    Syscall -->|"fd_table[fd] -> file_desc_t"| VFS["Virtual File System (VFS Core)"]
+    VFS -->|"vfs_lookup / vfs_mount"| Mounts["Mount Table (/ & /mnt/ext2)"]
+    Mounts -->|"vfs_ops_t: tarfs_ops"| TarFS["In-Memory Ramdisk (TarFS)"]
+    Mounts -->|"vfs_ops_t: ext2_ops"| ext2["ext2 Filesystem Driver"]
+    ext2 -->|"block_dev_t read/write_blocks"| BlockDev["Block Device Abstraction"]
+    BlockDev -->|"ATA PIO inw/outw"| ATADriver["ATA / IDE Storage Driver"]
 ```
 
 ### 1.1 Process File Descriptor Table
 Each `process_t` retains a private file descriptor table `fd_table[VFS_MAX_FD]`:
+
 - **FD 0**: Standard Input (`stdin` -> UART/Keyboard)
 - **FD 1**: Standard Output (`stdout` -> UART serial console)
 - **FD 2**: Standard Error (`stderr` -> UART serial console)
@@ -28,6 +29,7 @@ Each `process_t` retains a private file descriptor table `fd_table[VFS_MAX_FD]`:
 
 ### 1.2 Path Resolution (`vfs_lookup`)
 Given a path such as `"/mnt/ext2/docs/architecture.txt"`:
+
 1. `vfs_find_mount()` selects the longest prefix match (`"/mnt/ext2"`), yielding relative subpath `"docs/architecture.txt"`.
 2. The VFS starts from `mount->root_node` (Root Inode 2).
 3. Sequentially tokenizes components (`"docs"`, then `"architecture.txt"`), invoking `curr->ops->finddir()` on each directory node until target file node is resolved.
@@ -92,14 +94,23 @@ i_block[14]     : Triple Indirect Pointer
 ```
 
 ```mermaid
-graph TD
-    Inode[ext2_inode_t] --> Direct[i_block 0..11] --> DBlk[Data Blocks 0..11]
-    Inode --> SInd[i_block 12 Single Indirect] --> SIndBlk[Indirect Block Table] --> DBlk2[Data Blocks 12..267]
-    Inode --> DInd[i_block 13 Double Indirect] --> DIndBlk[Double Indirect Table] --> SIndBlk2[Indirect Tables] --> DBlk3[Data Blocks 268..]
+flowchart TD
+    Inode["ext2_inode_t"] --> Direct["i_block 0..11"]
+    Direct --> DBlk["Data Blocks 0..11"]
+
+    Inode --> SInd["i_block 12 (Single Indirect)"]
+    SInd --> SIndBlk["Indirect Block Table"]
+    SIndBlk --> DBlk2["Data Blocks 12..267"]
+
+    Inode --> DInd["i_block 13 (Double Indirect)"]
+    DInd --> DIndBlk["Double Indirect Table"]
+    DIndBlk --> SIndBlk2["Indirect Tables"]
+    SIndBlk2 --> DBlk3["Data Blocks 268.."]
 ```
 
 ### 3.2 File Offset to Physical Block Translation
 Given file logical block index $B$:
+
 - If $B < 12$:
   $$\text{Physical Block} = \text{inode.i\_block}[B]$$
 - If $12 \le B < 12 + \frac{\text{BlockSize}}{4}$:
@@ -125,6 +136,7 @@ typedef struct ext2_dir_entry_2 {
 ```
 
 ### 4.1 Creating Files (`O_CREAT`)
+
 1. **Inode Allocation (`ext2_alloc_inode`)**: Scans Inode Bitmap for first clear bit, marks bit as used, and decrements free counters.
 2. **Inode Initialization**: Sets file permissions (`0644`), type (`EXT2_S_IFREG`), size (0), and links (1).
 3. **Directory Record Split**: Finds the last directory record in parent directory with excess padding in `rec_len`, reduces its `rec_len` to actual rounded name size, and appends the new entry record in the remaining space.
@@ -153,6 +165,7 @@ BangOS Ring 3 applications interact with storage using standard POSIX syscall nu
 ## 6. FAT32 Architecture & Future Roadmap
 
 To extend BangOS with FAT32 support:
+
 1. **FAT32 Geometry**: Parse Volume Boot Record (VBR) at LBA 0 (Bytes Per Sector, Sectors Per Cluster, Reserved Sector Count, Number of FATs).
 2. **Cluster Chaining**: Read File Allocation Table (`FAT1` / `FAT2`) where each 32-bit entry points to the next cluster in the chain (`0x0FFFFFF8` = End of Cluster Chain).
 3. **VFS Mount**: Register `fat32_mount_device(dev, "/mnt/fat32", &root)` providing `vfs_ops_t` for FAT32 8.3 and LFN directory lookups.
