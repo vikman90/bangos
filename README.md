@@ -163,6 +163,13 @@ make docker-test
 make docker-shell
 ```
 
+### 5. Package Distribution Archives
+Package the ESP partition and ext2 storage disk into release archives:
+
+```bash
+make dist
+```
+
 ---
 
 ## 📁 Repository Structure
