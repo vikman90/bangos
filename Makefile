@@ -33,7 +33,12 @@ endif
 
 DOCKER_IMAGE ?= bangos-builder
 
-.PHONY: all userland esp run-qemu test clean docker-image docker-build docker-test docker-shell docs-build docs-serve
+VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo "release")
+DIST_PREFIX = $(BUILD_DIR)/bangos-$(VERSION)-x86_64
+DIST_ZIP = $(DIST_PREFIX).zip
+DIST_TAR = $(DIST_PREFIX).tar.gz
+
+.PHONY: all userland esp run-qemu test clean dist docker-image docker-build docker-test docker-shell docs-build docs-serve
 
 DISK_IMG = $(BUILD_DIR)/disk.img
 DISK_ROOT = userland/disk_root
@@ -82,6 +87,14 @@ TEST_TIMEOUT ?= 180
 
 test: esp $(DISK_IMG)
 	chmod +x scripts/run_qemu_test.sh && OVMF_PATH="$(OVMF_PATH)" TEST_TIMEOUT="$(TEST_TIMEOUT)" ./scripts/run_qemu_test.sh
+
+dist: all
+	@mkdir -p $(BUILD_DIR)
+	cd $(BUILD_DIR) && zip -q -r $(notdir $(DIST_ZIP)) esp/ disk.img
+	cd $(BUILD_DIR) && tar -czf $(notdir $(DIST_TAR)) esp/ disk.img
+	@echo "Distribution bundles generated:"
+	@echo "  -> $(DIST_ZIP)"
+	@echo "  -> $(DIST_TAR)"
 
 clean:
 	rm -rf $(BUILD_DIR)
