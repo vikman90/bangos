@@ -45,6 +45,7 @@ The root `Makefile` orchestrates the compilation of kernel modules, assembly tra
 | **`all`** *(default)* | `make all` | Compiles userland binaries, builds `initrd.tar`, generates `disk.img` (ext2), compiles the EFI kernel (`BOOTX64.EFI`), and populates the FAT32 ESP directory. |
 | **`esp`** | `make esp` | Compiles userland executables and packages the EFI bootloader binary at `build/esp/EFI/BOOT/BOOTX64.EFI` alongside `build/esp/initrd.tar`. |
 | **`userland`** | `make userland` | Builds all Ring 3 C applications in `userland/src/` statically using `musl-gcc` and bundles them into the USTAR `initrd.tar` ramdisk archive. |
+| **`dist`** | `make dist` | Compiles all targets and packages compressed release archives (`bangos-<version>-x86_64.zip` and `.tar.gz`) containing the ESP partition and `disk.img`. |
 | **`run-qemu`** | `make run-qemu` | Launches QEMU interactively in headless serial mode with OVMF UEFI firmware, the ext2 secondary disk (`disk.img`), and VirtIO-Net networking. |
 | **`test`** | `make test` | Executes the automated end-to-end Python test runner (`scripts/test_runner.py`) asserting 100% test pass rates across Ring 0 and Ring 3 suites. |
 | **`clean`** | `make clean` | Wipes the `build/` directory and removes all intermediate object files and staging trees. |
@@ -224,6 +225,13 @@ make docs-build
 ### 6.4 Continuous Deployment (GitHub Pages)
 
 The documentation is automatically built and deployed to GitHub Pages on every push to the `main` branch via the `.github/workflows/deploy-docs.yml` GitHub Actions workflow.
+
+### 6.5 Automated Release Assets (GitHub Releases)
+
+When a release or pre-release is published on GitHub, the `.github/workflows/release.yml` workflow automatically:
+1. Validates the codebase by running the full automated QEMU test suite (`make test`).
+2. Packages the EFI bootloader partition and storage disk image into distribution archives (`make dist`).
+3. Attaches the release bundles (`.zip`, `.tar.gz`) and standalone assets (`BOOTX64.EFI`, `initrd.tar`, `disk.img`) directly to the GitHub Release.
 
 ---
 
