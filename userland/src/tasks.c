@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 
@@ -110,6 +111,14 @@ int main(int argc, char **argv) {
             }
         } else if (strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
             printf("\n[Tasks] Terminating multitasking session...\n");
+            if (worker_pid > 0) {
+                kill(worker_pid, SIGTERM);
+            }
+            for (int i = 0; i < extra_count; i++) {
+                if (extra_workers[i] > 0) {
+                    kill(extra_workers[i], SIGTERM);
+                }
+            }
             break;
         } else if (strlen(line) > 0) {
             printf(ANSI_RED "Unknown command '%s'. Try: 'status', 'ping', 'stats', 'spawn', 'exit'\n" ANSI_RESET, line);
