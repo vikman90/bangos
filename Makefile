@@ -72,10 +72,10 @@ $(BUILD_DIR)/%.o: kernel/%.s | $(BUILD_DIR)
 $(EFI_SO): $(BOOT_OBJ) $(KERNEL_OBJS)
 	$(LD) -shared -Bsymbolic -L/usr/lib /usr/lib/crt0-efi-x86_64.o \
 		$(BOOT_OBJ) $(KERNEL_OBJS) \
-		-o $@ -T /usr/lib/elf_x86_64_efi.lds -lgnuefi -lefi
+		-o $@ -T boot/elf_x86_64_efi.lds -lgnuefi -lefi
 
 $(EFI_TARGET): $(EFI_SO) | $(ESP_DIR)
-	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel -j .rela -j .reloc --target=efi-app-x86_64 $< $@
+	$(OBJCOPY) -j .text -j .sdata -j .data -j .rodata -j .dynamic -j .dynsym -j .dynstr -j .rel -j .rela -j .rel.* -j .rela.* -j .reloc -O efi-app-x86_64 $< $@
 
 esp: userland $(EFI_TARGET)
 	cp userland/initrd.tar $(ESP_DIR)/initrd.tar
