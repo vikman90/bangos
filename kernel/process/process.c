@@ -433,6 +433,16 @@ void process_exit(int code) {
     proc->exit_code = code;
     proc->state = PROCESS_STATE_ZOMBIE;
 
+    // Terminate any active child processes of this exiting parent
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        if (process_table[i].active && process_table[i].ppid == proc->pid) {
+            process_table[i].exited = true;
+            process_table[i].exit_code = code;
+            process_table[i].state = PROCESS_STATE_ZOMBIE;
+            process_table[i].active = false;
+        }
+    }
+
     // Wake parent if waiting
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (process_table[i].active && process_table[i].pid == proc->ppid) {
@@ -445,6 +455,32 @@ void process_exit(int code) {
     while (1) {
         __asm__ volatile ("sti; hlt");
     }
+}
+
+int process_kill(int pid, int sig) {
+    (void)sig;
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        if (process_table[i].active && process_table[i].pid == pid) {
+            process_table[i].exited = true;
+            process_table[i].exit_code = sig;
+            process_table[i].state = PROCESS_STATE_ZOMBIE;
+            process_table[i].active = false;
+            for (int f = 3; f < VFS_MAX_FD; f++) {
+                if (process_table[i].fd_table[f].in_use) {
+                    fd_free(process_table[i].fd_table, f);
+                }
+            }
+            for (int p = 0; p < MAX_PROCESSES; p++) {
+                if (process_table[p].active && process_table[p].pid == process_table[i].ppid) {
+                    if (process_table[p].state == PROCESS_STATE_SLEEPING) {
+                        process_table[p].state = PROCESS_STATE_READY;
+                    }
+                }
+            }
+            return 0;
+        }
+    }
+    return -3; // -ESRCH
 }
 
 int futex_wait(uint32_t *uaddr, uint32_t val) {

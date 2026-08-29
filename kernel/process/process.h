@@ -73,6 +73,7 @@ int              process_execve(const char *path, char *const argv[], char *cons
 int              process_fork(context_frame_t *frame);
 int              process_clone(unsigned long flags, void *child_stack, int *ptid, int *ctid, void *newtls, context_frame_t *frame);
 int              process_wait4(int pid, int *status_ptr);
+int              process_kill(int pid, int sig);
 void             process_exit(int code);
 void             process_jump_to_user(process_t *proc);
 int              futex_wait(uint32_t *uaddr, uint32_t val);

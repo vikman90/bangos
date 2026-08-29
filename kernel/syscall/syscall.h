@@ -45,6 +45,7 @@
 #define SYS_EXECVE          59
 #define SYS_EXIT            60
 #define SYS_WAIT4           61
+#define SYS_KILL            62
 #define SYS_UNAME           63
 #define SYS_SYSINFO         99
 #define SYS_ARCH_PRCTL      158

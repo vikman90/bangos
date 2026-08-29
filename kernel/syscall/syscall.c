@@ -519,6 +519,12 @@ int64_t do_syscall(uint64_t sys_num, uint64_t arg1, uint64_t arg2, uint64_t arg3
             return (int64_t)process_wait4(pid, status);
         }
 
+        case SYS_KILL: {
+            int pid = (int)arg1;
+            int sig = (int)arg2;
+            return (int64_t)process_kill(pid, sig);
+        }
+
         case SYS_FUTEX: {
             uint32_t *uaddr = (uint32_t *)arg1;
             int op = (int)arg2 & ~128; // Mask out FUTEX_PRIVATE_FLAG
