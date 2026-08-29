@@ -120,6 +120,7 @@ sudo apt-get install -y \
     ovmf \
     musl \
     musl-tools \
+    e2fsprogs \
     tar \
     python3
 ```

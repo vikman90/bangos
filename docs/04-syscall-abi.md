@@ -176,6 +176,7 @@ syscall_entry:
 | **`59`** | `SYS_EXECVE` | `const char *path, char *const argv[], char *const envp[]` | Replaces current process with new standalone ELF from TarFS ramdisk. |
 | **`60`** | `SYS_EXIT` | `int status` | Terminates process/thread, notifies parent via `wait4`, or halts system if PID 1. |
 | **`61`** | `SYS_WAIT4` | `pid_t pid, int *status, int options, struct rusage *ru` | Waits for child process termination and retrieves exit status code. |
+| **`62`** | `SYS_KILL` | `pid_t pid, int sig` | Sends termination signal to target process by PID; transitions process to zombie and wakes parent. |
 | **`63`** | `SYS_UNAME` | `struct utsname *buf` | Populates system name ("BangOS"), release ("0.3.0"), architecture ("x86_64"). |
 | **`99`** | `SYS_SYSINFO` | `struct sysinfo *info` | Populates total RAM, free RAM, uptime in seconds, and active process count. |
 | **`158`** | `SYS_ARCH_PRCTL` | `int code, unsigned long addr` | Sets Thread Local Storage (TLS) by updating `MSR_FS_BASE` (`0xC0000100`). |
